@@ -1,5 +1,4 @@
 import pyttsx3
-import eel
 import random
 import datetime
 import speech_recognition as sr
@@ -12,42 +11,11 @@ import pyautogui
 import pythoncom
 from spellchecker import SpellChecker
 
-
-eel.init("web")
-
-
 is_speaking = False
 r = sr.Recognizer()
 r.energy_threshold = 400 
 r.dynamic_energy_threshold = False
 spell = SpellChecker()
-
-def display_message(text):
-    eel.DisplayMessage(text)
-
-def show_hood():
-    eel.ShowHood()
-
-def sender_text(text):
-    eel.senderText(text)
-
-def receiver_text(text):
-    eel.receiverText(text)
-
-def hide_loader():
-    eel.hideLoader()
-
-def hide_face_auth():
-    eel.hideFaceAuth()
-
-def hide_face_auth_success():
-    eel.hideFaceAuthSuccess()
-
-def hide_start():
-    eel.hideStart()
-
-
-
 
 def run_speech(text):
     global is_speaking
@@ -70,23 +38,9 @@ def run_speech(text):
         is_speaking = False
 
 def speak(text):
-    receiver_text(text)
     print(f"Saarthi: {text}")
     t = threading.Thread(target=run_speech, args=(text,))
     t.start()
-
-
-def startup_sequence():
-    hide_loader()
-    time.sleep(2)
-
-    hide_face_auth()
-    time.sleep(2)
-
-    hide_face_auth_success()
-    time.sleep(2)
-
-    hide_start()
 
 def wishme():
     hour = datetime.datetime.now().hour
@@ -101,8 +55,6 @@ def takeCommand():
     global is_speaking
     while is_speaking:
         time.sleep(0.1)
-
-    show_hood()
 
     with sr.Microphone() as source:
         print("Listening...")
@@ -141,8 +93,10 @@ def newCommand():
             print(f"AutoCorrected : {query} ->{corrected_query}")
         return corrected_query
     return query
-    
-def assistant():
+
+
+        
+if __name__ == "__main__":
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source, duration=0.5)
     
@@ -152,8 +106,6 @@ def assistant():
         query = takeCommand()
         if not query:
             continue
-
-        sender_text(query)
 
         if 'exit' in query or 'stop' in query or 'bye' in query:
             speak("Goodbye Sir! Have a productive day.")
@@ -185,7 +137,7 @@ def assistant():
 
         elif 'open calculator' in query:
             speak("Opening Calculator")
-            os.system("calc.exe")
+            os.system()
 
         elif 'open google' in query:
             speak("Opening Google.")
@@ -228,15 +180,3 @@ def assistant():
                     speak(results) 
             except:
                 speak("I couldn't find that information.")
-
-@eel.expose
-def startAssistant():
-    threading.Thread(target=assistant, daemon=True).start()
-
-
-if __name__ == "__main__":   
-    eel.start("index.html", mode="chrome", size=(1000, 650), block=False)
-    startAssistant()
-
-    while True:
-        eel.sleep(1)

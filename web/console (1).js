@@ -1,22 +1,5 @@
 $(document).ready(function () {
 
-    var siriWave = new SiriWave({
-        container: document.getElementById("siri-container"),
-        width: 640,
-        height: 200,
-        style: "ios",
-        amplitude: 1,
-        speed: 0.2,
-        autostart: true,
-    });
-
-    $('.siri-message').textillate({
-        loop: true,
-        sync: false,
-        in: { effect: 'fadeInUp', sync: false },
-        out: { effect: 'fadeOutUp', sync: false },
-    });
-
 
 
     // Display Speak Message
@@ -108,13 +91,6 @@ $(document).ready(function () {
             $("#Oval").attr("hidden", false);
         }, 1000)
     }
-
-
-    function initAssistant() {
-        eel.startAssistant()();
-    }
-
-    initAssistant();
 
 
 });

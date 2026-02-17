@@ -15,11 +15,10 @@ eel.init("web")
 
 is_speaking = False
 r = sr.Recognizer()
-r.energy_threshold = 300   # Adjusted for better mic sensitivity
-r.dynamic_energy_threshold = True
+r.energy_threshold = 400
+r.dynamic_energy_threshold = False
 spell = SpellChecker()
 
-# ---------------- UI Functions ----------------
 def display_message(text):
     eel.DisplayMessage(text)
 
@@ -44,31 +43,27 @@ def hide_face_auth_success():
 def hide_start():
     eel.hideStart()
 
-# ---------------- Text-to-Speech ----------------
 def run_speech(text):
     global is_speaking
     is_speaking = True
     pythoncom.CoInitialize()
-    try:
-        engine = pyttsx3.init('sapi5')
-        engine.setProperty('rate', 190)
-        voices = engine.getProperty('voices')
-        engine.setProperty('voice', voices[1].id)
-        engine.say(text)
-        engine.runAndWait()
-    except Exception as e:
-        print("TTS Error:", e)
-    finally:
-        pythoncom.CoUninitialize()
-        is_speaking = False
+
+    engine = pyttsx3.init('sapi5')
+    engine.setProperty('rate', 190)
+    voices = engine.getProperty('voices')
+    engine.setProperty('voice', voices[1].id)
+
+    engine.say(text)
+    engine.runAndWait()
+
+    pythoncom.CoUninitialize()
+    is_speaking = False
 
 def speak(text):
     receiver_text(text)
     print("Saarthi:", text)
-    # Run TTS in a thread to avoid blocking
-    threading.Thread(target=run_speech, args=(text,), daemon=True).start()
+    threading.Thread(target=run_speech, args=(text,)).start()
 
-# ---------------- Startup ----------------
 def startup_sequence():
     hide_loader()
     time.sleep(2)
@@ -87,42 +82,36 @@ def wishme():
     else:
         speak("Good Evening! I am Saarthi. How can I help you?")
 
-# ---------------- Speech Recognition ----------------
 def takeCommand():
     global is_speaking
     while is_speaking:
         time.sleep(0.1)
 
     show_hood()
-    print("Opening Microphone...")
+
+    with sr.Microphone() as source:
+        print("Listening...")
+        r.pause_threshold = 0.8
+        audio = r.listen(source)
+
     try:
-        with sr.Microphone() as source:
-            r.adjust_for_ambient_noise(source, duration=1)
-            print("Listening now...")
-            try:
-                audio = r.listen(source, timeout=5, phrase_time_limit=5)
-                query = r.recognize_google(audio, language="en-in")
-                print("User:", query)
-                sender_text(query)
-                return query.lower()
-            except sr.WaitTimeoutError:
-                print("Listening timed out")
-                return ""
-            except sr.UnknownValueError:
-                print("Could not understand audio")
-                return ""
-            except sr.RequestError as e:
-                print("Google API Error:", e)
-                return ""
-    except Exception as e:
-        print("Microphone Error:", e)
+        query = r.recognize_google(audio, language="en-in")
+        print("User:", query)
+        sender_text(query)
+        return query.lower()
+    except:
         return ""
+
 def assistant():
+    with sr.Microphone() as source:
+        r.adjust_for_ambient_noise(source, duration=1)
+
     startup_sequence()
     wishme()
 
     while True:
         query = takeCommand()
+
         if not query:
             continue
 
@@ -162,28 +151,21 @@ def assistant():
 
         elif 'play music' in query:
             music_dir = r"C:\Users\ashutosh negi\Music"
-            try:
-                songs = os.listdir(music_dir)
-                if songs:
-                    os.startfile(os.path.join(music_dir, songs[0]))
-                    speak("Playing music")
-                else:
-                    speak("No songs found in music directory")
-            except Exception as e:
-                speak("Unable to play music")
-                print("Music Error:", e)
+            songs = os.listdir(music_dir)
+            if songs:
+                os.startfile(os.path.join(music_dir, songs[0]))
+                speak("Playing music")
 
         else:
             try:
                 speak("Searching Wikipedia")
                 result = wikipedia.summary(query, sentences=1)
                 speak(result)
-            except Exception as e:
-                print("Wikipedia Error:", e)
+            except:
                 speak("I couldn't find that information.")
 
 @eel.expose
 def startAssistant():
-    threading.Thread(target=assistant, daemon=True).start()
+    threading.Thread(target=assistant).start()
 
-eel.start("index.html", mode="chrome", size=(1000, 650), block=False)
+eel.start("index.html", mode="chrome", size=(1000, 650))
