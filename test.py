@@ -11,13 +11,16 @@ from playsound import playsound
 import socket
 import webview
 from googlesearch import search
+from functools import wraps
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify,redirect, url_for, session
 import asyncio
 import edge_tts
 from dotenv import load_dotenv
 import google.generativeai as genai
+import json
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ─── Load API Key ─────────────────────────
 load_dotenv(".env")
@@ -28,6 +31,33 @@ gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 app = Flask(__name__,
             template_folder='templates',
             static_folder='static')
+
+app.secret_key = 'saarthi-secret-key-2026'
+
+#user storage
+USERS_FILE = 'users.json'
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('signin'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 recognizer = sr.Recognizer()
 recognizer.energy_threshold = 150
@@ -42,7 +72,7 @@ conversation = []
 # ─── Wake word detection ─────────────────────────────
 def is_wake_word(text):
     for word in text.split():
-        if SequenceMatcher(None, word, "saarthi").ratio() > 0.7:
+        if SequenceMatcher(None, word, "saarthi").ratio() > 0.75:
             return True
     return False
 
@@ -59,7 +89,7 @@ def gemini_response(prompt):
     global conversation
     try:
         conversation.append(f"User: {prompt}")
-        full_prompt = "\n".join(conversation[-6:])
+        full_prompt = "\n".join(conversation[-8:])
 
         response = gemini_model.generate_content(
             f"You are Saarthi, a smart Indian assistant. Keep answers short.\n{full_prompt}"
@@ -139,7 +169,7 @@ def speak(text):
 
         finally:
             speaking = False
-            if os.path.exists(filename):
+            if 'filename' in locals() and os.path.exists(filename):
                 os.remove(filename)
 
     threading.Thread(target=run, daemon=True).start()
@@ -229,12 +259,53 @@ def listen_for_wake_word():
         except:
             pass
 
+@app.route('/signin', methods=['GET', 'POST'])
+def signin():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        users = load_users()
+
+        if username in users and check_password_hash(users[username]['password'], password):
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('signin.html', error="Invalid username or password!")
+
+    return render_template('signin.html')
+
+@app.route('signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm = request.form.get('confirm_password')
+
+        if not username or not password:
+            return render_template('signup.html', error="All fields are required!")
+        if password != confirm:
+            return render_template('signup.html',error="Passwords do not match!")
+        
+        users = load_users()
+        if username in users:
+            return render_template('signup.html', error="Username already exists!")
+        
+        users[username] = {'password': generate_password_hash(password)}
+        save_users(users)
+
+        return redirect(url_for('signin'))
+    
+    return render_template('signup.html')
+
 #  Flask
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
+@login_required
 def process():
     data = request.get_json()
 
@@ -245,6 +316,12 @@ def process():
     speak(reply)
 
     return jsonify({'reply': reply})
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('sighnin'))
 
 def start_flask():
     app.run(port=5000, debug=False, use_reloader=False)
