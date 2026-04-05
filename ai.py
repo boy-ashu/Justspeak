@@ -11,23 +11,52 @@ from playsound import playsound
 import socket
 import webview
 from googlesearch import search
+from functools import wraps
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify,redirect, url_for, session
 import asyncio
 import edge_tts
 from dotenv import load_dotenv
-import google.generativeai as genai
-
-# ─── Load API Key ─────────────────────────
-load_dotenv(".env")
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+from google import genai
+import json
+from werkzeug.security import generate_password_hash, check_password_hash
+import traceback
+#Load API Key
+load_dotenv()
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ─── Globals ─────────────────────────
 app = Flask(__name__,
             template_folder='templates',
             static_folder='static')
+
+app.secret_key = 'saarthi-secret-key-2026'
+
+#user storage
+USERS_FILE = 'users.json'
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('signin'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 recognizer = sr.Recognizer()
 recognizer.energy_threshold = 150
@@ -42,7 +71,7 @@ conversation = []
 # ─── Wake word detection ─────────────────────────────
 def is_wake_word(text):
     for word in text.split():
-        if SequenceMatcher(None, word, "saarthi").ratio() > 0.7:
+        if SequenceMatcher(None, word, "saarthi").ratio() > 0.75:
             return True
     return False
 
@@ -59,19 +88,36 @@ def gemini_response(prompt):
     global conversation
     try:
         conversation.append(f"User: {prompt}")
-        full_prompt = "\n".join(conversation[-6:])
+        full_prompt = "\n".join(conversation[-8:])
 
-        response = gemini_model.generate_content(
-            f"You are Saarthi, a smart Indian assistant. Keep answers short.\n{full_prompt}"
+        available_models = client.models.list()
+        valid_model = next(
+            (m.name for m in available_models if "generateContent" in m.supported_actions),
+            None
         )
 
-        reply = response.text.strip()
+        if not valid_model:
+            print("No valid Gemini model found for generateContent!")
+            return "AI model not available."
+        
+        response = client.models.generate_content(
+            model=valid_model,
+            contents=f"You are Saarthi, a smart Indian assistant. Keep answers short.\n{full_prompt}"
+        )
+
+        reply = getattr(response, "text", None)
+
+        if not reply:
+            return "No response from Ai"
+        
+        reply = reply.strip()
         conversation.append(f"Assistant: {reply}")
 
         return reply
+    
     except Exception as e:
-        print("Gemini error:", e)
-        return None
+        traceback.print_exc()
+        return "Ai error"
 
 #Ollama AI (Offline)
 def ollama_response(prompt):
@@ -139,7 +185,7 @@ def speak(text):
 
         finally:
             speaking = False
-            if os.path.exists(filename):
+            if 'filename' in locals() and os.path.exists(filename):
                 os.remove(filename)
 
     threading.Thread(target=run, daemon=True).start()
@@ -208,12 +254,12 @@ def listen_for_wake_word():
 
     while True:
         try:
-            with sr.Microphone(device_index=DEFAULT_MIC) as source:
-                recognizer.adjust_for_ambient_noise(source, duration=1)
-                audio = recognizer.listen(source, phrase_time_limit=5)
+            with sr.Microphone() as source:
+                recognizer.adjust_for_ambient_noise(source, duration=0.8)
+                audio = recognizer.listen(source, phrase_time_limit=4)
                 try:
                     text = recognizer.recognize_google(audio).lower()
-                    print("Heard:", text)
+                    print(f"Heard:", {text})
 
                     if is_wake_word(text):
                        command = text.replace("saarthi","").strip()
@@ -225,26 +271,75 @@ def listen_for_wake_word():
                             listen_command()
                 except sr.UnknownValueError:
                     pass
+                except sr.RequestError:
+                    print("Could not request result from Google speech Recognition")
+                    time.sleep(0.8)
+                except Exception as e:
+                    print(f"Listener error :{e}")
+                    time.sleep(0.3)
 
         except:
             pass
 
+@app.route('/signin', methods=['GET', 'POST'])
+def signin():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        users = load_users()
+
+        if username in users and check_password_hash(users[username]['password'], password):
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('signin.html', error="Invalid username or password!")
+
+    return render_template('signin.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm = request.form.get('confirm_password')
+
+        if not username or not password:
+            return render_template('signup.html', error="All fields are required!")
+        if password != confirm:
+            return render_template('signup.html',error="Passwords do not match!")
+        
+        users = load_users()
+        if username in users:
+            return render_template('signup.html', error="Username already exists!")
+        
+        users[username] = {'password': generate_password_hash(password)}
+        save_users(users)
+
+        return redirect(url_for('signin'))
+    
+    return render_template('signup.html')
+
 #  Flask
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
+@login_required
 def process():
     data = request.get_json()
-
     query = data.get('query','')
-
     reply = process_query(query)
-
     speak(reply)
-
     return jsonify({'reply': reply})
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('signin'))
 
 def start_flask():
     app.run(port=5000, debug=False, use_reloader=False)
@@ -254,16 +349,16 @@ if __name__ == '__main__':
     print("=== Saarthi Voice Assistant Starting ===")
 
     threading.Thread(target=start_flask, daemon=True).start()
-    time.sleep(2)
+    time.sleep(1.2)
 
     threading.Thread(target=listen_for_wake_word, daemon=True).start()
     speak("Hello sir. Saarthi is now online.")
 
     webview.create_window(
         "Saarthi Voice Assistant",
-        "http://127.0.0.1:5000/",
-        width=1000,
-        height=680
+        "http://127.0.0.1:5000/signin",
+        width=1280,
+        height=760
     )
 
     webview.start()

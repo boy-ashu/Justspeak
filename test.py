@@ -18,14 +18,14 @@ from flask import Flask, render_template, request, jsonify,redirect, url_for, se
 import asyncio
 import edge_tts
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
-
-# ─── Load API Key ─────────────────────────
-load_dotenv(".env")
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+import traceback
+import queue
+#Load API Key
+load_dotenv()
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ─── Globals ─────────────────────────
 app = Flask(__name__,
@@ -36,6 +36,26 @@ app.secret_key = 'saarthi-secret-key-2026'
 
 #user storage
 USERS_FILE = 'users.json'
+
+log_queue = queue.Queue(maxsize=200)
+
+chat_history = []
+
+def log_to_frontend(message):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+
+    if not isinstance(message, str):
+        message = str(message)
+    
+    if "sdk_http_response" in message:
+        return
+    
+    clean = message.replace("\n", " ")
+    log_entry = f"[{timestamp}] {message}"
+    try:
+        log_queue.put_nowait(log_entry)
+    except queue.Full:
+        pass
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -71,8 +91,10 @@ conversation = []
 
 # ─── Wake word detection ─────────────────────────────
 def is_wake_word(text):
-    for word in text.split():
-        if SequenceMatcher(None, word, "saarthi").ratio() > 0.75:
+    wake_words = ["saarthi", "sarathi", "sarthi", "hey saarthi"]
+
+    for w in wake_words:
+        if w in text:
             return True
     return False
 
@@ -91,18 +113,44 @@ def gemini_response(prompt):
         conversation.append(f"User: {prompt}")
         full_prompt = "\n".join(conversation[-8:])
 
-        response = gemini_model.generate_content(
-            f"You are Saarthi, a smart Indian assistant. Keep answers short.\n{full_prompt}"
+        available_models = client.models.list()
+        valid_model = next(
+            (m.name for m in available_models if "generateContent" in m.supported_actions),
+            None
         )
 
-        reply = response.text.strip()
-        conversation.append(f"Assistant: {reply}")
+        if not valid_model:
+            return "AI model not available."
+
+        response = client.models.generate_content(
+            model=valid_model,
+            contents=f"You are Saarthi, a smart Indian assistant. Keep answers short.\n{full_prompt}"
+        )
+
+        reply = ""
+
+        try:
+            reply = response.candidates[0].content.parts[0].text
+        except:
+            try:
+                reply = response.text
+            except:
+                reply = ""
+
+        if not reply:
+            return "No response from AI"
+
+        reply = str(reply).strip()
+
+        # ✅ ONLY CLEAN TEXT LOG
+        log_to_frontend("AI: " + reply.replace("\n", " "))
 
         return reply
-    except Exception as e:
-        print("Gemini error:", e)
-        return None
 
+    except Exception as e:
+        log_to_frontend("Gemini Error: " + str(e))
+        return "AI error"
+    
 #Ollama AI (Offline)
 def ollama_response(prompt):
     global conversation
@@ -130,11 +178,17 @@ def ollama_response(prompt):
 
 # Smart AI Switch 
 def ai_response(prompt):
-    if internet_available():
-        reply = gemini_response(prompt)
-        if reply:
-            return reply
-    return ollama_response(prompt)
+    try:
+        if internet_available():
+           reply = gemini_response(prompt)
+           if reply:
+              return reply
+           
+        return ollama_response(prompt)
+    except Exception as e:
+        log_to_frontend(f"Ai Switch Error: {str(e)}")
+        return "AI system error"
+
 
 #Fallback Search
 def smart_search(query):
@@ -149,7 +203,6 @@ def speak(text):
     if not text or speaking:
         return
 
-    print(f"Saarthi: {text}")
     speaking = True
 
     def run():
@@ -215,7 +268,12 @@ def process_query(query):
         return "Volume decreased."
 
     # 🤖 AI RESPONSE
-    return ai_response(q)
+    reply = ai_response(q)
+
+    log_to_frontend(f"AI Generated: {reply}")
+
+    return reply
+
 
 # Voice Listener
 def listen_command():
@@ -227,7 +285,17 @@ def listen_command():
             query = recognizer.recognize_google(audio)
             print("You said:", query)
 
+            log_to_frontend(f"User (voice): {query}")
+
             reply = process_query(query)
+            
+            log_to_frontend(f"User (voice): {query}")
+            chat_history.append({
+                "user":query,
+                "assistant": reply,
+                "time": datetime.datetime.now().strftime("%H:%M:%S")
+            })
+            
             speak(reply)
 
     except:
@@ -235,29 +303,50 @@ def listen_command():
 
 def listen_for_wake_word():
     print("Listening for Saarthi...")
+    log_to_frontend("Wake word listener started - say 'Saarthi' to activate")
 
     while True:
         try:
-            with sr.Microphone(device_index=DEFAULT_MIC) as source:
-                recognizer.adjust_for_ambient_noise(source, duration=1)
-                audio = recognizer.listen(source, phrase_time_limit=5)
+            with sr.Microphone() as source:
+                recognizer.adjust_for_ambient_noise(source, duration=0.8)
+                audio = recognizer.listen(source, phrase_time_limit=4)
                 try:
                     text = recognizer.recognize_google(audio).lower()
-                    print("Heard:", text)
+                    print(f"Heard:", {text})
+                    log_to_frontend(f"Heard: {text}")
 
                     if is_wake_word(text):
                        command = text.replace("saarthi","").strip()
 
                        if command:
-                           speak(process_query(command))
+                           log_to_frontend(f"Command: {command}")
+
+                           reply = process_query(command)
+                          
+                           log_to_frontend(f"Saarthi: {reply}")
+
+                           chat_history.append({
+                               "user": command,
+                               "assistant": reply,
+                               "time": datetime.datetime.now().strftime("%H:%M:%S")
+                           })
+
+                           speak(reply)
                        else:
                             speak("Yes sir")
                             listen_command()
                 except sr.UnknownValueError:
                     pass
+                except sr.RequestError:
+                    print("Could not request result from Google speech Recognition")
+                    time.sleep(0.8)
+                except Exception as e:
+                    print(f"Listener error :{e}")
+                    time.sleep(0.3)
 
         except:
             pass
+
 
 @app.route('/signin', methods=['GET', 'POST'])
 def signin():
@@ -269,13 +358,14 @@ def signin():
         if username in users and check_password_hash(users[username]['password'], password):
             session['logged_in'] = True
             session['username'] = username
+            log_to_frontend(f"User '{username} logged in successfully")
             return redirect(url_for('index'))
         else:
             return render_template('signin.html', error="Invalid username or password!")
 
     return render_template('signin.html')
 
-@app.route('signup', methods=['GET', 'POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -293,6 +383,7 @@ def signup():
         
         users[username] = {'password': generate_password_hash(password)}
         save_users(users)
+        log_to_frontend(f"New user registered: {username}")
 
         return redirect(url_for('signin'))
     
@@ -302,45 +393,86 @@ def signup():
 @app.route('/')
 @login_required
 def index():
+    log_to_frontend("Frontend (index.html) loaded")
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
 @login_required
 def process():
     data = request.get_json()
-
     query = data.get('query','')
 
+    log_to_frontend(f"User: {query}")
     reply = process_query(query)
 
-    speak(reply)
+    if not reply:
+        reply = "Sorry, I didn't get a response."
 
-    return jsonify({'reply': reply})
+
+    chat_history.append({
+        "user": query,
+        "assistant": reply,
+        "time": datetime.datetime.now().strftime("%h:%M:%S")
+    })
+    log_to_frontend(f"AI: {reply}")
+    speak(reply)
+    return jsonify({
+        'reply': reply,
+        'chat': chat_history[-20:]})
+
+@app.route('/get-chat')
+@login_required
+def get_chat():
+    return jsonify({
+        'chat': chat_history[-20:]
+    })
+@app.route('/get-logs')
+@login_required
+def get_logs():
+    logs=[]
+    while not log_queue.empty():
+        try:
+            logs.append(log_queue.get_nowait())
+        except:
+            break
+    return jsonify({'logs': logs[-60:]})
+
+@app.route('/clear-logs')
+@login_required
+def clear_logs():
+    while not log_queue.empty():
+        try:
+            log_queue.get_nowait()
+        except:
+            pass
+        log_to_frontend("Logs cleared by user")
+        return jsonify({'status': 'cleared'})
 
 
 @app.route('/logout')
 def logout():
+    username = session.get('username', 'Unkown')
+    log_to_frontend(f"User {username} logged out")
     session.clear()
-    return redirect(url_for('sighnin'))
+    return redirect(url_for('signin'))
 
 def start_flask():
     app.run(port=5000, debug=False, use_reloader=False)
 
 #  Main 
 if __name__ == '__main__':
-    print("=== Saarthi Voice Assistant Starting ===")
 
     threading.Thread(target=start_flask, daemon=True).start()
-    time.sleep(2)
+    time.sleep(1)
 
     threading.Thread(target=listen_for_wake_word, daemon=True).start()
     speak("Hello sir. Saarthi is now online.")
-
+    
     webview.create_window(
         "Saarthi Voice Assistant",
-        "http://127.0.0.1:5000/",
-        width=1000,
-        height=680
+        "http://127.0.0.1:5000/signin",
+        width=1280,
+        height=760
     )
 
     webview.start()

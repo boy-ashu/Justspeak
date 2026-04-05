@@ -6,6 +6,43 @@
     <title>Saarthi • 3D AI Assistant</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
+    
+    <style>
+        /* Style for Backend Logs inside Conversation Box */
+        #chat-log .backend-log {
+            background: rgba(0, 255, 136, 0.12);
+            border-left: 4px solid #00ff88;
+            color: #00ffaa;
+            font-family: 'Courier New', monospace;
+            font-size: 13.8px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            border-radius: 8px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        #chat-log .normal-msg {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid #777;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clear-logs-btn {
+            background: rgba(255, 85, 85, 0.2);
+            color: #ff6666;
+            border: 1px solid #ff6666;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <canvas id="three-canvas"></canvas>
@@ -18,8 +55,7 @@
                 <span class="status-dot"></span>
                 ONLINE • GEMINI + OLLAMA
             </div>
-            <!-- Logout Button -->
-            <a href="/logout" class="logout-btn" title="Sign Out">LOGOUT</a>
+            <a href="/logout" class="logout-btn">LOGOUT</a>
         </div>
 
         <!-- Central Display -->
@@ -28,9 +64,12 @@
             <div id="response-text">Hello Sir, I'm ready.<br>How may I assist you today?</div>
         </div>
 
-        <!-- Conversation Log -->
+        <!-- Conversation Log (Now shows both chat + backend output) -->
         <div class="conversation-panel">
-            <div class="chat-header">◉ CONVERSATION LOG</div>
+            <div class="chat-header">
+                ◉ CONVERSATION + BACKEND OUTPUT
+                <button class="clear-logs-btn" onclick="clearBackendLogs()">CLEAR LOGS</button>
+            </div>
             <div id="chat-log"></div>
         </div>
 
@@ -42,7 +81,7 @@
         </div>
 
         <div class="footer">
-            3D JARVIS INTERFACE v2.0 • CONNECTED TO SAARTHI BACKEND
+            3D JARVIS INTERFACE v2.0 • BACKEND LOGS SHOWN IN CHAT
         </div>
 
         <div class="scan-line"></div>
