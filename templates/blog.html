@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JustSpeak - Speak. Interact. Feel Understood.</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    :root {
+      --primary: #00d4ff;
+      --dark: #0a0a0a;
+      --gray: #1f1f1f;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0a0a0a, #1a0033);
+      color: #fff;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .hero {
+      height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    #three-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      opacity: 0.85;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 900px;
+      padding: 0 20px;
+    }
+
+    .hero h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 4.5rem;
+      background: linear-gradient(90deg, #00d4ff, #ff00ff);
+      background-clip: text;          /* standard */
+      -webkit-background-clip: text;  /* required for Chrome */
+      -webkit-text-fill-color: transparent;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+    }
+
+    .hero p {
+      font-size: 1.4rem;
+      margin-bottom: 30px;
+      opacity: 0.9;
+    }
+
+    .btn {
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #00d4ff, #ff00ff);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0, 212, 255, 0.4);
+    }
+
+    section {
+      padding: 100px 8%;
+      position: relative;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 3rem;
+      text-align: center;
+      margin-bottom: 60px;
+      background: linear-gradient(90deg, #00d4ff, #ffffff);
+      background-clip: text;          /* standard */
+      -webkit-background-clip: text;  /* required for Chrome */
+      -webkit-text-fill-color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .about, .features, .team, .how-it-works, .future {
+      background: rgba(255,255,255,0.03);
+      border-radius: 20px;
+      margin-bottom: 80px;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+    }
+
+    .team-card {
+      background: rgba(255,255,255,0.05);
+      padding: 30px;
+      border-radius: 16px;
+      transition: 0.4s;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .team-card:hover {
+      transform: translateY(-15px);
+      border-color: var(--primary);
+      box-shadow: 0 20px 40px rgba(0, 212, 255, 0.15);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+    }
+
+    .feature-card {
+      background: rgba(255,255,255,0.05);
+      padding: 35px 25px;
+      border-radius: 16px;
+      text-align: center;
+      transition: 0.3s;
+    }
+
+    .feature-card:hover {
+      background: rgba(0, 212, 255, 0.1);
+      transform: scale(1.05);
+    }
+
+    footer {
+      text-align: center;
+      padding: 60px 20px;
+      background: #0a0a0a;
+      border-top: 1px solid rgba(0,212,255,0.2);
+    }
+
+    .emoji { font-size: 2.5rem; margin-bottom: 15px; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- HERO with 3D Animation -->
+  <section class="hero">
+    <canvas id="three-canvas"></canvas>
+    <div class="hero-content">
+      <h1>JustSpeak</h1>
+      <p>Speak naturally.<br>Authenticate securely.<br>Interact intelligently.</p>
+      <button class="btn btn-primary" onclick="document.getElementById('about').scrollIntoView({behavior: 'smooth'})">
+        🚀 Explore JustSpeak
+      </button>
+
+      <button class="btn btn-primary" onclick="goHome()" style="margin-top: 15px;">
+        Back to Home
+      </button>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="about">
+    <h2 class="section-title">🚀 About JustSpeak</h2>
+    <p style="font-size: 1.3rem; text-align: center; max-width: 900px; margin: 0 auto 60px;">
+      JustSpeak is an innovative AI-powered platform designed to make human-computer interaction more natural, 
+      secure, and intelligent. Instead of typing commands, users can <strong>speak, interact, and feel understood</strong>.
+    </p>
+  </section>
+
+  <!-- TEAM -->
+  <section class="team">
+    <h2 class="section-title">👥 Meet the Team</h2>
+    <div class="team-grid">
+      <div class="team-card">
+        <span class="emoji">🔧</span>
+        <h3>Ashutosh Negi</h3>
+        <p><strong>Backend Developer</strong></p>
+        <p>Built the core architecture using Flask, designed APIs, authentication logic, and seamless integration between all modules.</p>
+      </div>
+      <div class="team-card">
+        <span class="emoji">🎨</span>
+        <h3>Vanshika Verma</h3>
+        <p><strong>Frontend Developer</strong></p>
+        <p>Crafted a beautiful, responsive, and highly interactive user interface with smooth user experience.</p>
+      </div>
+      <div class="team-card">
+        <span class="emoji">🗄️</span>
+        <h3>Abhey Sharma</h3>
+        <p><strong>Database Manager</strong></p>
+        <p>Designed efficient database schemas and optimized data storage, retrieval, and integrity.</p>
+      </div>
+      <div class="team-card">
+        <span class="emoji">🔐</span>
+        <h3>Anshul Kumain</h3>
+        <p><strong>Security Specialist</strong></p>
+        <p>Implemented secure authentication, voice-based identity verification, and protected user privacy.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- KEY FEATURES -->
+  <section class="features">
+    <h2 class="section-title">🌟 Key Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="emoji">🎤</span>
+        <h3>Smart Voice Recognition</h3>
+        <p>Seamless voice input processing with high accuracy</p>
+      </div>
+      <div class="feature-card">
+        <span class="emoji">🧠</span>
+        <h3>Intelligent Responses</h3>
+        <p>AI understands context and delivers meaningful replies</p>
+      </div>
+      <div class="feature-card">
+        <span class="emoji">🔐</span>
+        <h3>Voice Authentication</h3>
+        <p>Advanced voice-based secure login system</p>
+      </div>
+      <div class="feature-card">
+        <span class="emoji">📊</span>
+        <h3>Personalized Experience</h3>
+        <p>Adapts to your behavior and preferences over time</p>
+      </div>
+      <div class="feature-card">
+        <span class="emoji">⚡</span>
+        <h3>Fast & Scalable</h3>
+        <p>Optimized backend for lightning-fast responses</p>
+      </div>
+      <div class="feature-card">
+        <span class="emoji">📱</span>
+        <h3>Responsive Design</h3>
+        <p>Works perfectly on desktop and mobile browsers</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section style="background: rgba(0,0,0,0.6);">
+    <h2 class="section-title">🔄 How JustSpeak Works</h2>
+    <ol style="max-width: 800px; margin: 0 auto; font-size: 1.2rem; line-height: 2.2;">
+      <li><strong>1.</strong> Open the web app</li>
+      <li><strong>2.</strong> Login with credentials or voice pattern</li>
+      <li><strong>3.</strong> Speak your command naturally</li>
+      <li><strong>4.</strong> Backend + AI processes your request instantly</li>
+      <li><strong>5.</strong> Get intelligent voice or text response</li>
+    </ol>
+  </section>
+
+  <!-- TECHNOLOGIES -->
+  <section>
+    <h2 class="section-title">🛠️ Technologies Used</h2>
+    <p style="text-align:center; font-size:1.3rem; max-width:700px; margin:0 auto;">
+      <strong>Backend:</strong> Python + Flask<br>
+      <strong>Frontend:</strong> HTML, CSS, JavaScript<br>
+      <strong>Database:</strong> SQL<br>
+      <strong>Voice:</strong> Speech Recognition Libraries<br>
+      <strong>Security:</strong> Advanced Authentication Mechanisms
+    </p>
+  </section>
+
+  <!-- FUTURE VISION -->
+  <section class="future" style="background: linear-gradient(135deg, #1a0033, #000);">
+    <h2 class="section-title">🚀 Future Enhancements</h2>
+    <ul style="max-width: 800px; margin: 0 auto; font-size: 1.25rem; line-height: 2;">
+      <li>🤖 Advanced AI Chatbot with memory</li>
+      <li>🌍 Multi-language support (Hindi + English + more)</li>
+      <li>📊 User mood detection</li>
+      <li>📱 Dedicated Mobile App</li>
+      <li>🔗 IoT & Smart Device Integration</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p style="font-size:1.4rem; margin-bottom:15px;">Made with ❤️ by Team JustSpeak</p>
+    <p>Ashutosh Negi • Vanshika Verma • Abhey Sharma • Anshul Kumain</p>
+    <p style="margin-top:30px; opacity:0.7;">JustSpeak — The Future of Voice Interaction</p>
+  </footer>
+
+  <script>
+
+    function goHome(){
+        window.location.replace('/home');
+    }
+
+    // Simple 3D Running Animation using Three.js
+    let scene, camera, renderer;
+    let particles = [];
+
+    function init3D() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      camera.position.z = 30;
+
+      // Create glowing particles (representing voice waves / data flow)
+      const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0x00d4ff,
+        transparent: true,
+        opacity: 0.8
+      });
+
+      for (let i = 0; i < 150; i++) {
+        const particle = new THREE.Mesh(geometry, material);
+        
+        particle.position.x = Math.random() * 60 - 30;
+        particle.position.y = Math.random() * 60 - 30;
+        particle.position.z = Math.random() * 40 - 20;
+        
+        particle.userData = {
+          speed: Math.random() * 0.08 + 0.02,
+          amplitude: Math.random() * 0.5 + 0.3
+        };
+        
+        scene.add(particle);
+        particles.push(particle);
+      }
+
+      // Add subtle light
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      animate();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      particles.forEach(p => {
+        p.position.z += p.userData.speed;
+        p.position.y += Math.sin(Date.now() * 0.002 + p.position.x) * p.userData.amplitude * 0.03;
+
+        if (p.position.z > 30) {
+          p.position.z = -30;
+          p.position.x = Math.random() * 60 - 30;
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      if (camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    });
+
+    // Start the 3D animation
+    window.onload = init3D;
+  </script>
+</body>
+</html>

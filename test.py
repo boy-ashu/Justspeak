@@ -41,6 +41,8 @@ log_queue = queue.Queue(maxsize=200)
 
 chat_history = []
 
+ADMIN_USERS = ["ashutosh", "anshul", "vanshika", "abhi"]
+
 def log_to_frontend(message):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -51,7 +53,7 @@ def log_to_frontend(message):
         return
     
     clean = message.replace("\n", " ")
-    log_entry = f"[{timestamp}] {message}"
+    log_entry = f"[{timestamp}] {clean}"
     try:
         log_queue.put_nowait(log_entry)
     except queue.Full:
@@ -348,6 +350,10 @@ def listen_for_wake_word():
             pass
 
 
+@app.route('/')
+def home():
+    return render_template('home.html')
+
 @app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'POST':
@@ -359,7 +365,13 @@ def signin():
             session['logged_in'] = True
             session['username'] = username
             log_to_frontend(f"User '{username} logged in successfully")
-            return redirect(url_for('index'))
+
+            if username in ADMIN_USERS:
+                session['role'] ='admin'
+                return redirect(url_for('admin'))
+            else:
+                session['role'] = 'user'
+                return redirect(url_for('index'))
         else:
             return render_template('signin.html', error="Invalid username or password!")
 
@@ -390,11 +402,30 @@ def signup():
     return render_template('signup.html')
 
 #  Flask
-@app.route('/')
+@app.route('/index')
 @login_required
 def index():
-    log_to_frontend("Frontend (index.html) loaded")
     return render_template('index.html')
+
+
+@app.route('/')
+def root():
+    return render_template('home.html')
+
+@app.route('/admin')
+@login_required
+def admin():
+    username = session.get('username')
+    if username not in ADMIN_USERS:
+        return "Access Denied", 403
+    return render_template('admin.html')
+
+@app.route('/logout')
+def logout():
+    username = session.get('username', 'Unkown')
+    log_to_frontend(f"User {username} logged out")
+    session.clear()
+    return redirect(url_for('signin'))
 
 @app.route('/process', methods=['POST'])
 @login_required
@@ -403,12 +434,7 @@ def process():
     query = data.get('query','')
 
     log_to_frontend(f"User: {query}")
-    reply = process_query(query)
-
-    if not reply:
-        reply = "Sorry, I didn't get a response."
-
-
+    reply = f"You said: {query}"
     chat_history.append({
         "user": query,
         "assistant": reply,
@@ -437,6 +463,10 @@ def get_logs():
             break
     return jsonify({'logs': logs[-60:]})
 
+@app.route('/home')
+def homepage():
+    return render_template('home.html')
+
 @app.route('/clear-logs')
 @login_required
 def clear_logs():
@@ -447,14 +477,9 @@ def clear_logs():
             pass
         log_to_frontend("Logs cleared by user")
         return jsonify({'status': 'cleared'})
-
-
-@app.route('/logout')
-def logout():
-    username = session.get('username', 'Unkown')
-    log_to_frontend(f"User {username} logged out")
-    session.clear()
-    return redirect(url_for('signin'))
+@app.route('/blog')
+def blog():
+    return render_template('blog.html')
 
 def start_flask():
     app.run(port=5000, debug=False, use_reloader=False)
@@ -470,7 +495,7 @@ if __name__ == '__main__':
     
     webview.create_window(
         "Saarthi Voice Assistant",
-        "http://127.0.0.1:5000/signin",
+        "http://127.0.0.1:5000/",
         width=1280,
         height=760
     )

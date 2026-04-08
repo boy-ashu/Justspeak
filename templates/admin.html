@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Saarthi Admin Panel • Full Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
+    <!-- Bootstrap 5.3 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+   
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+    <style>
+        :root {
+            --cyan: #00f2fe;
+            --purple: #c300ff;
+            --accent: #00ffcc;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a1a20, #1e3a4a, #2c5364);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Three.js Background */
+        #three-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.65;
+            pointer-events: none;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,242,254,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,242,254,0.04) 1px, transparent 1px),
+                linear-gradient(transparent 50%, rgba(195,0,255,0.02) 50%);
+            background-size: 60px 60px, 60px 60px, 100% 4px;
+            pointer-events: none;
+            z-index: -2;
+            animation: scan 8s linear infinite;
+        }
+        @keyframes scan {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 200px; }
+        }
+
+        .header {
+            background: rgba(10, 26, 32, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 242, 254, 0.5);
+            z-index: 10;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            position: relative;
+        }
+        /* Glitch effect */
+        .header h1::before,
+        .header h1::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            opacity: 0.8;
+        }
+        .header h1::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00aa;
+            animation: glitch1 1.5s infinite linear alternate-reverse;
+            clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
+        }
+        .header h1::after {
+            left: -2px;
+            text-shadow: 2px 0 #00f2fe;
+            animation: glitch2 1.8s infinite linear alternate-reverse;
+            clip-path: polygon(0 67%, 100% 67%, 100% 100%, 0 100%);
+        }
+        @keyframes glitch1 { 0%,100% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } }
+        @keyframes glitch2 { 0%,100% { transform: translate(0); } 20% { transform: translate(3px, -2px); } }
+
+        .logo-dot {
+            width: 14px; height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 30px var(--accent), 0 0 60px var(--cyan);
+            animation: pulse 1.2s infinite;
+        }
+        .sidebar {
+            width: 270px;
+            background: rgba(10, 26, 32, 0.97);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(0, 242, 254, 0.4);
+            overflow-y: auto;
+        }
+        .sidebar .nav-link {
+            color: #ddd;
+            padding: 16px 30px;
+            transition: all 0.4s ease;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(0, 242, 254, 0.2);
+            color: var(--cyan);
+            transform: translateX(15px);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+        .main-content {
+            flex: 1;
+            overflow: hidden;
+            perspective: 1800px;
+        }
+        .content-area {
+            padding: 30px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        .custom-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(0,242,254,0.35);
+            border-radius: 18px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4),
+                        0 0 40px rgba(0,242,254,0.25);
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            position: relative;
+            overflow: hidden;
+        }
+        .custom-card:hover {
+            transform: translateY(-18px) scale(1.04) rotateX(8deg) rotateY(8deg);
+            box-shadow: 0 30px 70px rgba(0, 242, 254, 0.45),
+                        0 0 60px rgba(195, 0, 255, 0.3);
+        }
+        .logs-box {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(0,242,254,0.45);
+            border-radius: 18px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+        }
+        .btn-neon {
+            background: linear-gradient(90deg, #00f2fe, #00c6ff);
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 25px #00f2fe;
+        }
+        .btn-neon:hover {
+            transform: translateY(-3px) scale(1.08);
+            box-shadow: 0 0 45px #00f2fe;
+        }
+
+        /* Fixed Gradient Text */
+        .stat-number {
+            font-size: 3.2rem;
+            font-weight: 900;
+            color: #00f2fe;                    /* Fallback */
+            background: linear-gradient(90deg, #00f2fe, #ffffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Three.js Canvas -->
+    <canvas id="three-bg"></canvas>
+
+<!-- Header -->
+<header class="header py-3 px-4">
+    <div class="container-fluid">
+        <div class="d-flex align-items-center justify-content-between">
+            <h1 data-text="SAARTHI ADMIN PANEL" class="mb-0 d-flex align-items-center gap-3">
+                <span class="logo-dot"></span>
+                SAARTHI ADMIN PANEL
+            </h1>
+            <div class="d-flex align-items-center gap-4">
+                <div class="text-success fw-bold">● LIVE</div>
+                <div id="server-time" class="text-light">Server Time: --:-- IST</div>
+                <a href="/logout" class="text-danger fw-semibold text-decoration-none">LOGOUT</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="d-flex flex-grow-1 overflow-hidden">
+    <!-- Sidebar -->
+    <nav class="sidebar d-flex flex-column p-3">
+        <div class="nav flex-column">
+            <a href="#" onclick="switchSection(0)" class="nav-link active" id="nav-0">📊 Dashboard</a>
+            <a href="#" onclick="switchSection(1)" class="nav-link" id="nav-1">📜 Live Logs</a>
+            <a href="#" onclick="switchSection(2)" class="nav-link" id="nav-2">👥 Users</a>
+            <a href="#" onclick="switchSection(3)" class="nav-link" id="nav-3">🚦 Traffic</a>
+            <a href="#" onclick="switchSection(4)" class="nav-link" id="nav-4">🔑 Permissions</a>
+            <a href="#" onclick="switchSection(5)" class="nav-link" id="nav-5">⚙️ Settings</a>
+        </div>
+    </nav>
+    <!-- Main Content -->
+    <div class="main-content flex-grow-1 d-flex flex-column">
+        <div class="content-area">
+            <!-- Dashboard Section -->
+            <div id="section-0" class="section active">
+                <h2 class="mb-4">System Overview</h2>
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6">
+                        <div class="custom-card h-100 text-center">
+                            <h5 class="mb-3">Active Users</h5>
+                            <div class="stat-number">142</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <div class="custom-card h-100 text-center">
+                            <h5 class="mb-3">Requests Today</h5>
+                            <div class="stat-number">8,947</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <div class="custom-card h-100 text-center">
+                            <h5 class="mb-3">AI Calls</h5>
+                            <div class="stat-number">3,291</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Live Logs Section -->
+            <div id="section-1" class="section">
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button onclick="loadLogs()" class="btn btn-neon">Refresh</button>
+                    <button onclick="toggleLogs()" id="toggleBtn" class="btn btn-neon">Pause</button>
+                    <button onclick="clearLogs()" class="btn btn-danger">Clear Logs</button>
+                    <button onclick="downloadLogs()" class="btn btn-neon">Download</button>
+                </div>
+                <div class="logs-box p-4 overflow-auto" id="logs" style="height: calc(100vh - 280px);"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+
+<script>
+// Three.js 3D Background Animation
+let scene, camera, renderer, particles;
+
+function initThree() {
+    const canvas = document.getElementById('three-bg');
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 90;
+
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // Create particles
+    const particleCount = 800;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        positions[i]     = (Math.random() - 0.5) * 200;
+        positions[i + 1] = (Math.random() - 0.5) * 200;
+        positions[i + 2] = (Math.random() - 0.5) * 200;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const material = new THREE.PointsMaterial({
+        color: 0x00f2fe,
+        size: 1.3,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+
+    particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        particles.rotation.y += 0.0005;
+        particles.rotation.x += 0.0003;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+}
+
+// Your existing functions
+function add3DTilt() {
+    const cards = document.querySelectorAll('.custom-card');
+    cards.forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+           
+            const rotateX = (y - centerY) / 12;
+            const rotateY = (centerX - x) / 12;
+           
+            card.style.transform = `perspective(1200px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg) translateZ(30px)`;
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg) translateZ(0px)`;
+        });
+    });
+}
+
+function switchSection(n) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + n).classList.add('active');
+   
+    document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+    document.getElementById('nav-' + n).classList.add('active');
+}
+
+let isRunning = true;
+async function loadLogs() {
+    const logsDiv = document.getElementById('logs');
+    logsDiv.innerHTML = '<div class="log p-3 mb-3 bg-dark border-start border-info">Loading logs...</div>';
+   
+    try {
+        const res = await fetch('/get-logs');
+        const data = await res.json();
+        logsDiv.innerHTML = '';
+        data.logs.forEach((log, i) => {
+            const div = document.createElement('div');
+            div.className = 'log p-3 mb-3 bg-dark border-start border-info rounded';
+            div.style.animationDelay = (i * 60) + 'ms';
+            div.textContent = log;
+            logsDiv.appendChild(div);
+        });
+    } catch(e) {
+        logsDiv.innerHTML = '<div class="p-3 text-danger">Error loading logs</div>';
+    }
+}
+
+function toggleLogs() {
+    isRunning = !isRunning;
+    document.getElementById('toggleBtn').textContent = isRunning ? 'Pause' : 'Resume';
+}
+
+function clearLogs() {
+    if(confirm('Clear all logs?')) document.getElementById('logs').innerHTML = '';
+}
+
+function downloadLogs() {
+    alert('Logs downloaded (connect your backend)');
+}
+
+setInterval(() => {
+    if (document.getElementById('section-1').classList.contains('active')) {
+        loadLogs();
+    }
+}, 4000);
+
+window.onload = () => {
+    initThree();        // Added Three.js 3D animation
+    loadLogs();
+    add3DTilt();
+    document.getElementById('server-time').textContent =
+        `Server: ${new Date().toLocaleTimeString('en-IN', {hour12: false})} IST`;
+};
+</script>
+</body>
+</html>
