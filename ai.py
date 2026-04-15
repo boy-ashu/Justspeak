@@ -2,17 +2,15 @@ import threading
 import time
 import datetime
 import os
+import uuid
 import webbrowser
-from difflib import SequenceMatcher
 import pyautogui
 import speech_recognition as sr
 from playsound import playsound
 import socket
 import webview
-from googlesearch import search
 from functools import wraps
 import requests
-from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 import asyncio
 import edge_tts
@@ -22,7 +20,6 @@ from mysql.connector import pooling, Error
 from werkzeug.security import generate_password_hash, check_password_hash
 import queue
 from groq import Groq
-from collections import OrderedDict
 from contextlib import contextmanager
 
 # ─── Load API Key ───
@@ -36,10 +33,6 @@ app = Flask(__name__,
             static_folder='static')
 
 app.secret_key = 'saarthi-secret-key-2026'
-
-# FIX 1: LRU TTS cache with eviction (max 50 entries, prevents disk/memory leak)
-MAX_TTS_CACHE = 50
-tts_cache = OrderedDict()
 
 # ─── DB Config ───
 DB_CONFIG = {
@@ -81,7 +74,6 @@ def get_db_connection():
         raise Exception("Database connection pool not available")
     return connection_pool.get_connection()
 
-# FIX 2: Context manager for DB — auto-closes connection always
 @contextmanager
 def get_db():
     conn = get_db_connection()
@@ -94,7 +86,6 @@ def get_db():
             pass
 
 def create_tables():
-    """Create users and feedback tables"""
     try:
         with get_db() as conn:
             cursor = conn.cursor()
@@ -124,7 +115,6 @@ def create_tables():
         print(f"❌ Table creation error: {err}")
 
 def create_admin_users():
-    """Create or update admin users from .env file"""
     if not ADMIN_USERS:
         return
     try:
@@ -156,13 +146,39 @@ def create_admin_users():
 
 log_queue = queue.Queue(maxsize=200)
 
-# FIX 3: chat_history capped at 100 to prevent memory leak
+# ─── Per-user chat history and conversation — keyed by username ───
 MAX_CHAT_HISTORY = 100
-chat_history = []
-
-# FIX 4: conversation capped globally
 MAX_CONVERSATION = 10
-conversation = []
+_chat_histories = {}   # username -> list of {user, assistant, time}
+_conversations = {}    # username -> list of "User: ..." / "Assistant: ..." strings
+_state_lock = threading.Lock()
+
+def get_chat_history(username):
+    with _state_lock:
+        return list(_chat_histories.get(username, []))
+
+def append_chat_history(username, entry):
+    with _state_lock:
+        hist = _chat_histories.setdefault(username, [])
+        hist.append(entry)
+        if len(hist) > MAX_CHAT_HISTORY:
+            _chat_histories[username] = hist[-MAX_CHAT_HISTORY:]
+
+def get_conversation(username):
+    with _state_lock:
+        return list(_conversations.get(username, []))
+
+def append_conversation(username, line):
+    with _state_lock:
+        conv = _conversations.setdefault(username, [])
+        conv.append(line)
+        if len(conv) > MAX_CONVERSATION:
+            _conversations[username] = conv[-MAX_CONVERSATION:]
+
+def set_conversation(username, lines):
+    with _state_lock:
+        _conversations[username] = lines[-MAX_CONVERSATION:]
+
 
 def log_to_frontend(message):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
@@ -188,34 +204,70 @@ def login_required(f):
 
 
 recognizer = sr.Recognizer()
-recognizer.energy_threshold = 150
+recognizer.energy_threshold = 300
 recognizer.dynamic_energy_threshold = True
+recognizer.pause_threshold = 0.8
+recognizer.phrase_threshold = 0.3
 
-DEFAULT_MIC = None
+def find_default_mic():
+    mic_names = sr.Microphone.list_microphone_names()
+    print("🎤 Available microphones:")
+    for i, name in enumerate(mic_names):
+        print(f"   [{i}] {name}")
 
+    preferred = ['microphone', 'mic', 'realtek', 'headset', 'usb', 'input', 'array']
+    for i, name in enumerate(mic_names):
+        name_lower = name.lower()
+        if any(p in name_lower for p in preferred):
+            print(f"✅ Auto-selected mic [{i}]: {name}")
+            return i
+
+    if mic_names:
+        print(f"⚠️ No preferred mic found, using [{0}]: {mic_names[0]}")
+        return 0
+
+    print("❌ No microphone found!")
+    return None
+
+DEFAULT_MIC = find_default_mic()
 VOICE = "en-IN-NeerjaNeural"
-speaking = False
 
-# FIX 5: TTS queue so replies are never silently dropped
-tts_queue = queue.Queue()
+tts_queue = queue.Queue(maxsize=10)
 
-# FIX 6: Cache Gemini model at startup — avoid re-fetching on every call
 GEMINI_MODEL = None
 
 def init_gemini_model():
     global GEMINI_MODEL
     try:
-        available_models = client.models.list()
-        GEMINI_MODEL = next(
-            (m.name for m in available_models if "generateContent" in m.supported_actions),
-            None
-        )
+        print("⏳ Connecting to Gemini API...")
+        result = [None]
+        def fetch():
+            try:
+                available_models = client.models.list()
+                result[0] = next(
+                    (m.name for m in available_models if "generateContent" in m.supported_actions),
+                    None
+                )
+            except Exception as e:
+                print(f"❌ Gemini fetch error: {e}")
+
+        t = threading.Thread(target=fetch, daemon=True)
+        t.start()
+        t.join(timeout=10)
+
+        if t.is_alive():
+            print("⚠️ Gemini API timed out — will use Groq/Ollama fallback")
+            GEMINI_MODEL = None
+            return
+
+        GEMINI_MODEL = result[0]
         if GEMINI_MODEL:
             print(f"✅ Gemini model cached: {GEMINI_MODEL}")
         else:
-            print("⚠️ No valid Gemini model found")
+            print("⚠️ No valid Gemini model found — will use Groq/Ollama fallback")
     except Exception as e:
         print(f"❌ Gemini model init error: {e}")
+        GEMINI_MODEL = None
 
 
 # ─── Wake word detection ─────────────────────────────
@@ -234,15 +286,12 @@ def internet_available():
     except:
         return False
 
-def groq_response(prompt):
-    global conversation
+def groq_response(prompt, username="system"):
     try:
-        conversation.append(f"User: {prompt}")
-        # FIX 4: Trim conversation globally
-        if len(conversation) > MAX_CONVERSATION:
-            conversation = conversation[-MAX_CONVERSATION:]
+        conv = get_conversation(username)
+        conv.append(f"User: {prompt}")
+        full_prompt = "\n".join(conv[-6:])
 
-        full_prompt = "\n".join(conversation[-6:])
         response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -251,26 +300,24 @@ def groq_response(prompt):
             ]
         )
         reply = response.choices[0].message.content.strip()
-        conversation.append(f"Assistant: {reply}")
+
+        append_conversation(username, f"User: {prompt}")
+        append_conversation(username, f"Assistant: {reply}")
+
         log_to_frontend("Groq: " + reply.replace("\n", " "))
         return reply
     except Exception as e:
         log_to_frontend("Groq Error: " + str(e))
         return None
 
-# ─── Gemini AI ─────────────────────────
-def gemini_response(prompt):
-    global conversation
+def gemini_response(prompt, username="system"):
     try:
-        # FIX 6: Use cached model — no API call every time
         if not GEMINI_MODEL:
             return "AI model not available."
 
-        conversation.append(f"User: {prompt}")
-        if len(conversation) > MAX_CONVERSATION:
-            conversation = conversation[-MAX_CONVERSATION:]
-
-        full_prompt = "\n".join(conversation[-8:])
+        conv = get_conversation(username)
+        conv.append(f"User: {prompt}")
+        full_prompt = "\n".join(conv[-8:])
 
         response = client.models.generate_content(
             model=GEMINI_MODEL,
@@ -287,28 +334,26 @@ def gemini_response(prompt):
                 reply = ""
 
         if not reply:
-            return "No response from AI"
+            return None
 
         reply = str(reply).strip()
-        conversation.append(f"Assistant: {reply}")
+
+        append_conversation(username, f"User: {prompt}")
+        append_conversation(username, f"Assistant: {reply}")
+
         log_to_frontend("AI: " + reply.replace("\n", " "))
         return reply
 
     except Exception as e:
         log_to_frontend("Gemini Error: " + str(e))
-        return "AI error"
+        return None
 
-# ─── Ollama AI (Offline) ─────────────────────────
-def ollama_response(prompt):
-    global conversation
+def ollama_response(prompt, username="system"):
     try:
-        conversation.append(f"User: {prompt}")
-        if len(conversation) > MAX_CONVERSATION:
-            conversation = conversation[-MAX_CONVERSATION:]
+        conv = get_conversation(username)
+        conv.append(f"User: {prompt}")
+        full_prompt = "\n".join(conv[-6:])
 
-        full_prompt = "\n".join(conversation[-6:])
-
-        # FIX 7: Increased timeout — local models can be slow on first load
         timeout = int(os.getenv("OLLAMA_TIMEOUT", 60))
         response = requests.post(
             "http://localhost:11434/api/generate",
@@ -321,75 +366,66 @@ def ollama_response(prompt):
         )
 
         reply = response.json().get("response", "").strip()
-        conversation.append(f"Assistant: {reply}")
+        if reply:
+            append_conversation(username, f"User: {prompt}")
+            append_conversation(username, f"Assistant: {reply}")
         return reply if reply else "No response from offline AI."
     except Exception as e:
         print("Ollama error:", e)
         return "Offline AI not available."
 
-# ─── Smart AI Switch ─────────────────────────
-def ai_response(prompt):
+def ai_response(prompt, username="system"):
     try:
-        reply = groq_response(prompt)
+        reply = groq_response(prompt, username)
         if reply:
             return reply
-        reply = gemini_response(prompt)
+        reply = gemini_response(prompt, username)
         if reply:
             return reply
-        return ollama_response(prompt)
+        return ollama_response(prompt, username)
     except Exception as e:
         log_to_frontend(f"AI Switch Error: {str(e)}")
         return "AI system error"
 
 # ─── TTS Worker Thread ─────────────────────────
 def tts_worker():
-    """FIX 5: Dedicated TTS worker — processes speak queue one by one, never drops replies"""
     while True:
         text = tts_queue.get()
         if text is None:
             break
+
+        filename = f"saarthi_{uuid.uuid4().hex}.mp3"
         try:
-            if text in tts_cache:
-                # Move to end (most recently used)
-                tts_cache.move_to_end(text)
-                playsound(tts_cache[text])
-            else:
-                filename = f"saarthi_{int(time.time()*1000)}.mp3"
+            async def generate():
+                communicate = edge_tts.Communicate(text, VOICE)
+                await communicate.save(filename)
 
-                async def generate():
-                    communicate = edge_tts.Communicate(text, VOICE)
-                    await communicate.save(filename)
-
-                asyncio.run(generate())
-
-                # FIX 1: Evict oldest entry if cache is full
-                if len(tts_cache) >= MAX_TTS_CACHE:
-                    oldest_key, oldest_file = tts_cache.popitem(last=False)
-                    try:
-                        if os.path.exists(oldest_file):
-                            os.remove(oldest_file)
-                    except Exception:
-                        pass
-
-                tts_cache[text] = filename
-                playsound(filename)
+            asyncio.run(generate())
+            playsound(filename)
 
         except Exception as e:
             print("Speech error:", e)
+
         finally:
+            try:
+                if os.path.exists(filename):
+                    os.remove(filename)
+            except Exception as e:
+                print("File delete error:", e)
+
             tts_queue.task_done()
 
 def speak(text):
-    """FIX 5: Non-blocking, queue-based speak — replies are never dropped"""
+    """Non-blocking, queue-based TTS. Drops silently if queue is full."""
     if not text:
         return
     try:
         tts_queue.put_nowait(text)
     except queue.Full:
-        pass
+        log_to_frontend("⚠️ TTS queue full — speech skipped")
 
 # ─── Command Processor ─────────────────────────
-def process_query(query):
+def process_query(query, username="system"):
     if not query:
         return "Sorry, I didn't catch that."
 
@@ -428,70 +464,119 @@ def process_query(query):
         pyautogui.press('volumedown', presses=5)
         return "Volume decreased."
 
-    reply = ai_response(q)
+    reply = ai_response(q, username)
     log_to_frontend(f"AI Generated: {reply}")
     return reply
 
-def listen_command():
-    try:
-        with sr.Microphone(device_index=DEFAULT_MIC) as source:
-            recognizer.adjust_for_ambient_noise(source, duration=1)
-            audio = recognizer.listen(source, phrase_time_limit=8)
-            query = recognizer.recognize_google(audio)
-            print("You said:", query)
+_listener_running = False
+_listener_lock = threading.Lock()
 
-            log_to_frontend(f"User (voice): {query}")  # FIX 8: Log only once (removed duplicate)
-            reply = process_query(query)
+def listener_loop():
+    global DEFAULT_MIC, _listener_running
+    username = "voice_user"
+    consecutive_errors = 0
 
-            global chat_history
-            chat_history.append({
-                "user": query,
-                "assistant": reply,
-                "time": datetime.datetime.now().strftime("%H:%M:%S")
-            })
-            # FIX 3: Cap chat_history
-            if len(chat_history) > MAX_CHAT_HISTORY:
-                chat_history = chat_history[-MAX_CHAT_HISTORY:]
+    log_to_frontend("✅ Listener started — say 'Hey Saarthi <command>'")
+    print("🎤 Listener loop started")
 
-            speak(reply)
-    except:
-        speak("Sorry, I didn't understand.")
-
-def listen_for_wake_word():
-    print("Listening for Saarthi...")
-    log_to_frontend("Wake word listener started")
-    while True:
+    while _listener_running:
         try:
-            with sr.Microphone() as source:
-                audio = recognizer.listen(source, phrase_time_limit=3)
+            with sr.Microphone(device_index=DEFAULT_MIC) as source:
+                # Recalibrate every 20 cycles to adapt to changing environment
+                if consecutive_errors == 0 or consecutive_errors % 20 == 0:
+                    recognizer.adjust_for_ambient_noise(source, duration=0.4)
+
+                audio = recognizer.listen(source, phrase_time_limit=6, timeout=8)
+
             text = recognizer.recognize_google(audio).lower()
+            consecutive_errors = 0
+            print(f"[MIC] Heard: {text}")
+
             if is_wake_word(text):
-                command = text.replace("saarthi", "").strip()
+                # Strip wake word to isolate the actual command
+                command = text
+                for w in ["hey saarthi", "saarthi", "sarathi", "sarthi"]:
+                    command = command.replace(w, "").strip()
+
                 if command:
-                    reply = process_query(command)
-                    global chat_history
-                    chat_history.append({
+                    log_to_frontend(f"✅ Executing: \"{command}\"")
+                    reply = process_query(command, username)
+                    append_chat_history(username, {
                         "user": command,
                         "assistant": reply,
                         "time": datetime.datetime.now().strftime("%H:%M:%S")
                     })
-                    if len(chat_history) > MAX_CHAT_HISTORY:
-                        chat_history = chat_history[-MAX_CHAT_HISTORY:]
                     speak(reply)
-                else:
-                    speak("Yes sir")
-        except sr.UnknownValueError:
-            pass
-        except Exception as e:
-            print("Wake word error:", e)
-            time.sleep(0.2)
 
-# ─── Flask Routes ───────────────────────────────
+                else:
+                    speak("Yes sir?")
+                    log_to_frontend("👂 Wake word heard — waiting for follow-up command...")
+                    try:
+                        with sr.Microphone(device_index=DEFAULT_MIC) as source:
+                            log_to_frontend("👂 Listening for your command...")
+                            follow_audio = recognizer.listen(source, phrase_time_limit=6, timeout=5)
+
+                        follow_text = recognizer.recognize_google(follow_audio).lower()
+                        log_to_frontend(f"✅ Command: \"{follow_text}\"")
+                        reply = process_query(follow_text, username)
+                        append_chat_history(username, {
+                            "user": follow_text,
+                            "assistant": reply,
+                            "time": datetime.datetime.now().strftime("%H:%M:%S")
+                        })
+                        speak(reply)
+
+                    except sr.WaitTimeoutError:
+                        speak("I didn't hear anything. Try again.")
+                    except sr.UnknownValueError:
+                        speak("Sorry, couldn't understand that.")
+
+        except sr.WaitTimeoutError:
+            pass  
+        except sr.UnknownValueError:
+            pass  
+        except sr.RequestError as e:
+            consecutive_errors += 1
+            log_to_frontend(f"❌ Speech API error: {e}")
+            time.sleep(3)
+
+        except OSError as e:
+            consecutive_errors += 1
+            log_to_frontend(f"❌ Mic hardware error: {e} — retrying...")
+            time.sleep(3)
+            DEFAULT_MIC = find_default_mic()  # Re-detect mic on hardware failure
+
+        except Exception as e:
+            consecutive_errors += 1
+            log_to_frontend(f"❌ Listener error [{type(e).__name__}]: {e}")
+            time.sleep(1)
+
+    log_to_frontend("🔇 Listener stopped")
+    print("🔇 Listener loop exited")
+
+def start_listener():
+    """Start the listener if not already running. Returns True if started."""
+    global _listener_running
+    with _listener_lock:
+        if _listener_running:
+            log_to_frontend("⚠️ Listener already running")
+            return False
+        _listener_running = True
+        threading.Thread(target=listener_loop, daemon=True).start()
+        return True
+
+def stop_listener():
+    """Pause the listener. The loop exits cleanly on next iteration."""
+    global _listener_running
+    with _listener_lock:
+        _listener_running = False
+
+def is_listener_running():
+    return _listener_running
 
 @app.route('/')
 @app.route('/home')
 def home():
-    # FIX 9: Merged duplicate '/' routes into one
     return render_template('home.html')
 
 @app.route('/signin', methods=['GET', 'POST'])
@@ -531,7 +616,6 @@ def signup():
 
         if not username or not password or password != confirm:
             return render_template('signup.html', error="Please fill all fields correctly!")
-
         try:
             with get_db() as conn:
                 cursor = conn.cursor()
@@ -548,7 +632,6 @@ def signup():
                 """, (username, hashed, role))
                 conn.commit()
                 cursor.close()
-
             log_to_frontend(f"New user registered: {username}")
             return redirect(url_for('signin'))
 
@@ -583,31 +666,41 @@ def logout():
 def process():
     data = request.get_json()
     query = data.get('query', '')
+    username = session.get('username', 'unknown')
 
-    log_to_frontend(f"User: {query}")
-    reply = process_query(query)
+    log_to_frontend(f"User [{username}]: {query}")
+    reply = process_query(query, username)
 
-    global chat_history
-    chat_history.append({
+    append_chat_history(username, {
         "user": query,
         "assistant": reply,
         "time": datetime.datetime.now().strftime("%H:%M:%S")
     })
-    # FIX 3: Cap chat_history
-    if len(chat_history) > MAX_CHAT_HISTORY:
-        chat_history = chat_history[-MAX_CHAT_HISTORY:]
 
-    log_to_frontend(f"AI: {reply}")
+    log_to_frontend(f"AI [{username}]: {reply}")
     speak(reply)
     return jsonify({
         'reply': reply,
-        'chat': chat_history[-20:]
+        'chat': get_chat_history(username)[-20:]
     })
 
-@app.route('/get-chat')
+@app.route('/toggle-mic', methods=['POST'])
 @login_required
-def get_chat():
-    return jsonify({'chat': chat_history[-20:]})
+def toggle_mic():
+    if is_listener_running():
+        stop_listener()
+        log_to_frontend("🔇 Mic paused by user")
+        return jsonify({'status': 'off', 'message': 'Mic paused'})
+    else:
+        start_listener()
+        log_to_frontend("🎤 Mic resumed by user — say Hey Saarthi")
+        return jsonify({'status': 'on', 'message': 'Mic resumed — say Hey Saarthi'})
+
+@app.route('/mic-status', methods=['GET'])
+@login_required
+def mic_status():
+    """Frontend polls this to show the mic ON/OFF indicator."""
+    return jsonify({'active': is_listener_running()})
 
 @app.route('/get-logs')
 @login_required
@@ -623,7 +716,6 @@ def get_logs():
 @app.route('/clear-logs')
 @login_required
 def clear_logs():
-    # FIX 10: return was inside the while loop — fixed indentation
     while not log_queue.empty():
         try:
             log_queue.get_nowait()
@@ -697,28 +789,23 @@ def clear_feedback():
 def blog():
     return render_template('blog.html')
 
-
 def start_flask():
     app.run(port=5000, debug=False, use_reloader=False)
-
 
 if __name__ == '__main__':
     create_tables()
     create_admin_users()
 
-    # FIX 6: Cache Gemini model once at startup
-    init_gemini_model()
+    threading.Thread(target=init_gemini_model, daemon=True).start()
 
-    # FIX 5: Start TTS worker thread
     tts_worker_thread = threading.Thread(target=tts_worker, daemon=True)
     tts_worker_thread.start()
 
     threading.Thread(target=start_flask, daemon=True).start()
-    time.sleep(1)
+    time.sleep(2)  # Give Flask time to bind to port 5000
 
-    threading.Thread(target=listen_for_wake_word, daemon=True).start()
+    start_listener()
     speak("Hello sir. Saarthi is now online.")
-
     webview.create_window(
         "Saarthi Voice Assistant",
         "http://127.0.0.1:5000/",
