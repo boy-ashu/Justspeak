@@ -6,38 +6,219 @@
     <title>Saarthi • 3D AI Assistant</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
-    
+
     <style>
-        /* Style for Backend Logs inside Conversation Box */
-        #chat-log .backend-log {
-            background: rgba(0, 255, 136, 0.12);
-            border-left: 4px solid #00ff88;
-            color: #00ffaa;
-            font-family: 'Courier New', monospace;
-            font-size: 13.8px;
-            padding: 12px 16px;
-            margin: 10px 0;
-            border-radius: 8px;
-            line-height: 1.5;
-            white-space: pre-wrap;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        #chat-log .normal-msg {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid #777;
+        body {
+            overflow: hidden;
+            height: 100vh;
+            background: #0a0a1f;
+            font-family: 'Orbitron', sans-serif;
+            color: white;
+        }
+
+        canvas#three-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .hud-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            pointer-events: none; /* Allows clicking through empty areas */
+        }
+
+        /* Header - Fixed at top, no overflow */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 25px;
+            background: rgba(10, 10, 31, 0.85);
+            border-bottom: 2px solid rgba(0, 247, 255, 0.3);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            pointer-events: auto;
+            flex-shrink: 0; /* Prevents shrinking */
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 6px;
+            text-shadow: 0 0 20px #00f7ff;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #00ffaa;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .admin-btn, .logout-btn, .enable-2fa-btn {
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+
+        .admin-btn {
+            background: rgba(0, 242, 254, 0.2);
+            color: #00f2fe;
+            border: 1px solid #00f2fe;
+        }
+
+        .enable-2fa-btn {
+            background: rgba(255, 215, 0, 0.15);
+            color: #ffd700;
+            border: 1px solid #ffd700;
+        }
+
+        .logout-btn {
+            background: rgba(255, 80, 80, 0.2);
+            color: #ff6666;
+            border: 1px solid #ff6666;
+        }
+
+        /* Center Panel */
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: auto;
+            z-index: 2;
+            margin: 10px 0;
+        }
+
+        .core-text {
+            font-size: 68px;
+            font-weight: 700;
+            letter-spacing: 12px;
+            text-shadow: 0 0 40px #00f7ff;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        #response-text {
+            font-size: 22px;
+            max-width: 80%;
+            line-height: 1.4;
+            color: #a0f0ff;
+        }
+
+        /* Conversation Panel */
+        .conversation-panel {
+            background: rgba(10, 10, 31, 0.85);
+            border: 2px solid rgba(0, 247, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            height: 260px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            pointer-events: auto;
+            flex-shrink: 0;
         }
 
         .chat-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 12px;
+            font-size: 15px;
+            color: #00f7ff;
+        }
+
+        #chat-log {
+            height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: rgba(10, 10, 31, 0.9);
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 2px solid rgba(0, 247, 255, 0.3);
+            pointer-events: auto;
+            flex-shrink: 0;
+        }
+
+        #mic-btn {
+            width: 58px;
+            height: 58px;
+            font-size: 28px;
+            background: rgba(255, 60, 60, 0.15);
+            border: 2px solid #ff4444;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #mic-btn.active {
+            background: rgba(255, 60, 60, 0.4);
+            box-shadow: 0 0 25px 8px rgba(255, 60, 60, 0.7);
+        }
+
+        #mic-status-badge {
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        #text-input {
+            flex: 1;
+            padding: 16px 22px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid #00f7ff;
+            border-radius: 50px;
+            color: white;
+            font-size: 16px;
+        }
+
+        #send-btn {
+            padding: 0 32px;
+            background: #00f7ff;
+            color: #0a0a1f;
+            border: none;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
         }
 
         .clear-logs-btn {
             background: rgba(255, 85, 85, 0.2);
             color: #ff6666;
             border: 1px solid #ff6666;
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 12px;
             cursor: pointer;
@@ -52,39 +233,25 @@
         <div class="header">
             <div class="logo">SAARTHI</div>
             <div class="status">
-                <span class="status-dot"></span>
-                ONLINE • GEMINI + OLLAMA
+                <span class="status-dot"></span> ONLINE • GEMINI + GROQ
             </div>
-            <a href="/logout" class="logout-btn">LOGOUT</a>
+            <div class="header-buttons">
+                <button onclick="enable2FA()" class="enable-2fa-btn">🔐 Enable 2FA</button>
+                <a href="/admin" class="admin-btn">⚡ ADMIN</a>
+                <a href="/logout" class="logout-btn">LOGOUT</a>
+            </div>
         </div>
 
-        <!-- Central Display -->
+        <!-- Center Panel -->
         <div class="center-panel">
             <div class="core-text" id="core-text">SAARTHI</div>
             <div id="response-text">Hello Sir, I'm ready.<br>How may I assist you today?</div>
         </div>
 
-        <!-- Inside index.html, in the .header div -->
-    <div class="header">
-    <div class="logo">SAARTHI</div>
-    <div class="status">
-        <span class="status-dot"></span>
-        ONLINE • GEMINI + OLLAMA
-    </div>
-    
-    <!-- NEW: Admin Panel Link -->
-    <a href="/admin.html" class="admin-btn" target="_blank" 
-       style="background: rgba(0, 242, 254, 0.2); color: #00f2fe; padding: 8px 18px; border-radius: 30px; text-decoration: none; font-weight: 600; border: 1px solid #00f2fe; transition: all 0.3s;">
-        ⚡ ADMIN PANEL
-    </a>
-    
-    <a href="/logout" class="logout-btn">LOGOUT</a>
-</div>
-
-        <!-- Conversation Log (Now shows both chat + backend output) -->
+        <!-- Conversation Log -->
         <div class="conversation-panel">
             <div class="chat-header">
-                ◉ CONVERSATION + BACKEND OUTPUT
+                ◉ CONVERSATION LOG
                 <button class="clear-logs-btn" onclick="clearBackendLogs()">CLEAR LOGS</button>
             </div>
             <div id="chat-log"></div>
@@ -92,18 +259,20 @@
 
         <!-- Controls -->
         <div class="controls">
-            <button id="mic-btn" title="Voice Command">🎤</button>
+            <button id="mic-btn" title="Toggle Voice Listening">🎤</button>
+            <span id="mic-status-badge" class="off">MIC OFF</span>
+            
             <input type="text" id="text-input" placeholder="Type your command here..." autocomplete="off">
             <button id="send-btn">SEND</button>
         </div>
-
-        <div class="footer">
-            3D JARVIS INTERFACE v2.0 • BACKEND LOGS SHOWN IN CHAT
-        </div>
-
-        <div class="scan-line"></div>
     </div>
 
     <script src="/static/script.js"></script>
+
+    <script>
+        function enable2FA() {
+            window.location.href = "/enable-2fa";
+        }
+    </script>
 </body>
 </html>

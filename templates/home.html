@@ -5,197 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Saarthi • 3D AI Assistant</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
-            height: 100%;
-            min-height: 100vh;
-            background: #0a0a1f;
-            color: #00f7ff;
-            font-family: 'Orbitron', sans-serif;
-            overflow: hidden;
+            height: 100%; min-height: 100vh;
+            background: #0a0a1f; color: #00f7ff;
+            font-family: 'Orbitron', sans-serif; overflow: hidden;
         }
+        body { display: flex; align-items: center; justify-content: center; position: relative; }
 
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .hero {
-            text-align: center;
-            z-index: 10;
-            max-width: 960px;
-            width: 100%;
-            padding: 20px;
-        }
-
+        .hero { text-align: center; z-index: 10; max-width: 960px; width: 100%; padding: 20px; }
         .logo {
-            font-size: 88px;
-            font-weight: 700;
-            letter-spacing: 12px;
+            font-size: 88px; font-weight: 700; letter-spacing: 12px;
             text-shadow: 0 0 40px #00ffea, 0 0 80px #00f7ff;
-            margin-bottom: 18px;
-            animation: glow 2s ease-in-out infinite alternate;
-            line-height: 1;
+            margin-bottom: 18px; animation: glow 2s ease-in-out infinite alternate;
         }
-
-        .tagline {
-            font-size: 26px;
-            margin-bottom: 40px;
-            opacity: 0.92;
-            letter-spacing: 5px;
-        }
-
+        .tagline { font-size: 26px; margin-bottom: 40px; opacity: 0.92; letter-spacing: 5px; }
         .description {
-            font-size: 18px;
-            max-width: 640px;
-            margin: 0 auto 55px;
-            line-height: 1.75;
-            color: #a0f7ff;
+            font-size: 18px; max-width: 640px; margin: 0 auto 55px;
+            line-height: 1.75; color: #a0f7ff;
         }
-
         .start-btn {
-            padding: 18px 70px;
-            font-size: 21px;
-            font-weight: 700;
-            background: transparent;
-            color: #00f7ff;
-            border: 3px solid #00f7ff;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.4s ease;
-            text-transform: uppercase;
-            letter-spacing: 6px;
+            padding: 18px 70px; font-size: 21px; font-weight: 700;
+            background: transparent; color: #00f7ff; border: 3px solid #00f7ff;
+            border-radius: 50px; cursor: pointer; transition: all 0.4s ease;
+            text-transform: uppercase; letter-spacing: 6px;
             box-shadow: 0 0 35px rgba(0, 247, 255, 0.65);
         }
-
         .start-btn:hover {
-            background: #00f7ff;
-            color: #0a0a1f;
-            box-shadow: 0 0 65px rgba(0, 247, 255, 0.95);
-            transform: scale(1.06);
+            background: #00f7ff; color: #0a0a1f;
+            box-shadow: 0 0 65px rgba(0, 247, 255, 0.95); transform: scale(1.06);
         }
 
-        /* Navigation */
         .nav {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            z-index: 20;
-            display: flex;
-            gap: 15px;
+            position: absolute; top: 30px; right: 30px; z-index: 20;
+            display: flex; gap: 15px;
         }
-
         .nav-btn {
-            padding: 11px 24px;
-            background: rgba(0, 247, 255, 0.1);
-            color: #00f7ff;
-            border: 2px solid #00f7ff;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 15.5px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            transition: all 0.3s ease;
+            padding: 11px 24px; background: rgba(0, 247, 255, 0.1);
+            color: #00f7ff; border: 2px solid #00f7ff; border-radius: 50px;
+            cursor: pointer; font-size: 15.5px; font-weight: 600;
+            letter-spacing: 2px; transition: all 0.3s ease;
         }
+        .nav-btn:hover { background: #00f7ff; color: #0a0a1f; }
 
-        .nav-btn:hover {
-            background: #00f7ff;
-            color: #0a0a1f;
-        }
-
-        /* Modals */
         .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.9); z-index: 100;
+            align-items: center; justify-content: center;
         }
-
         .modal-content {
-            background: #0a0a1f;
-            border: 3px solid #00f7ff;
-            border-radius: 20px;
-            width: 92%;
-            max-width: 540px;
-            padding: 35px 30px;
-            box-shadow: 0 0 80px rgba(0, 247, 255, 0.7);
+            background: #0a0a1f; border: 3px solid #00f7ff;
+            border-radius: 20px; width: 92%; max-width: 540px;
+            padding: 35px 30px; box-shadow: 0 0 80px rgba(0, 247, 255, 0.7);
             position: relative;
         }
-
-        .modal-content h2 {
-            color: #00f7ff;
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 27px;
-        }
-
+        .modal-content h2 { color: #00f7ff; text-align: center; margin-bottom: 25px; font-size: 27px; }
         .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 25px;
-            font-size: 32px;
-            cursor: pointer;
-            color: #00f7ff;
-            line-height: 1;
+            position: absolute; top: 15px; right: 25px;
+            font-size: 32px; cursor: pointer; color: #00f7ff;
         }
 
         /* Background Effects */
-        .bg-particles {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(0, 247, 255, 0.09) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 1;
-        }
-
+        .bg-particles, .scan-line { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+        .bg-particles { background: radial-gradient(circle at center, rgba(0, 247, 255, 0.09) 0%, transparent 70%); }
         .scan-line {
-            position: absolute;
-            inset: 0;
             background: linear-gradient(to bottom, transparent 50%, rgba(0, 247, 255, 0.15) 50%);
-            background-size: 100% 4px;
-            animation: scan 8s linear infinite;
-            pointer-events: none;
-            z-index: 2;
-            opacity: 0.3;
+            background-size: 100% 4px; animation: scan 8s linear infinite; opacity: 0.3;
         }
 
-        @keyframes glow {
-            from { text-shadow: 0 0 30px #00ffea; }
-            to { text-shadow: 0 0 85px #00f7ff, 0 0 130px #00ffea; }
-        }
+        @keyframes glow { from { text-shadow: 0 0 30px #00ffea; } to { text-shadow: 0 0 85px #00f7ff, 0 0 130px #00ffea; } }
+        @keyframes scan { 0% { background-position: 0 0; } 100% { background-position: 0 400px; } }
 
-        @keyframes scan {
-            0% { background-position: 0 0; }
-            100% { background-position: 0 400px; }
-        }
+        .features { display: flex; justify-content: center; gap: 55px; margin-top: 75px; flex-wrap: wrap; }
+        .feature { text-align: center; max-width: 170px; }
+        .feature-icon { font-size: 42px; margin-bottom: 14px; }
 
-        .features {
-            display: flex;
-            justify-content: center;
-            gap: 55px;
-            margin-top: 75px;
-            flex-wrap: wrap;
-        }
-
-        .feature {
-            text-align: center;
-            max-width: 170px;
-        }
-
-        .feature-icon {
-            font-size: 42px;
-            margin-bottom: 14px;
-        }
+        /* Star Rating */
+        .stars { text-align: center; margin: 15px 0; font-size: 28px; }
+        .star { cursor: pointer; color: #555; transition: 0.2s; }
+        .star.active, .star:hover { color: #00f7ff; }
     </style>
 </head>
 <body>
@@ -220,26 +108,13 @@
             voice commands, and advanced intelligence.
         </div>
 
-        <!-- Changed Button Here -->
         <button class="start-btn" onclick="enterInterface()">START AI</button>
 
         <div class="features">
-            <div class="feature">
-                <span class="feature-icon">🌌</span>
-                <strong>3D Holographic UI</strong>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">🎤</span>
-                <strong>Voice Activated</strong>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">⚡</span>
-                <strong>Real-time Logs</strong>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">🧠</span>
-                <strong>Powered by Gemini</strong>
-            </div>
+            <div class="feature"><span class="feature-icon">🌌</span><strong>3D Holographic UI</strong></div>
+            <div class="feature"><span class="feature-icon">🎤</span><strong>Voice Activated</strong></div>
+            <div class="feature"><span class="feature-icon">⚡</span><strong>Real-time Logs</strong></div>
+            <div class="feature"><span class="feature-icon">🧠</span><strong>Powered by Gemini</strong></div>
         </div>
     </div>
 
@@ -248,16 +123,13 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeManualModal()">×</span>
             <h2>📖 Saarthi Manual</h2>
-            
-            <h3 style="margin:20px 0 10px; color:#00f7ff;">About Saarthi</h3>
             <p>Saarthi is a futuristic 3D holographic AI companion inspired by JARVIS, powered by Gemini AI.</p>
-
             <h3 style="margin:25px 0 10px; color:#00f7ff;">How to Use</h3>
             <ul style="list-style:none; padding-left:10px;">
                 <li style="padding:8px 0;">1. Click <strong>START AI</strong> to begin</li>
                 <li style="padding:8px 0;">2. Sign in to your account</li>
                 <li style="padding:8px 0;">3. Use voice or type your queries</li>
-                <li style="padding:8px 0;">4. Enjoy the immersive 3D experience</li>
+                <li style="padding:8px 0;">4. Enjoy the immersive experience</li>
             </ul>
         </div>
     </div>
@@ -267,10 +139,25 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeFeedback()">×</span>
             <h2>💬 Send Feedback</h2>
-            <p style="text-align:center; margin-bottom:20px;">We value your thoughts!</p>
-            <textarea id="feedbackText" placeholder="Tell us what you like, what can be improved..." 
-                style="width:100%; height:160px; background:rgba(255,255,255,0.05); border:2px solid #00f7ff; color:#fff; border-radius:12px; padding:15px; font-size:16px;"></textarea>
-            
+            <p style="text-align:center; margin-bottom:15px;">We value your thoughts!</p>
+
+            <input id="username" type="text" placeholder="Your Name" 
+                style="width:100%; margin-bottom:12px; padding:12px; border-radius:10px; border:2px solid #00f7ff; background:rgba(255,255,255,0.05); color:#fff; font-size:15px; outline:none;">
+
+            <input id="email" type="email" placeholder="Your Email" 
+                style="width:100%; margin-bottom:12px; padding:12px; border-radius:10px; border:2px solid #00f7ff; background:rgba(255,255,255,0.05); color:#fff; font-size:15px; outline:none;">
+
+            <div class="stars" id="ratingStars">
+                <span class="star" data-value="1" onclick="setRating(1)">★</span>
+                <span class="star" data-value="2" onclick="setRating(2)">★</span>
+                <span class="star" data-value="3" onclick="setRating(3)">★</span>
+                <span class="star" data-value="4" onclick="setRating(4)">★</span>
+                <span class="star" data-value="5" onclick="setRating(5)">★</span>
+            </div>
+
+            <textarea id="feedbackText" placeholder="Tell us what you like, what can be improved..."
+                style="width:100%; height:140px; background:rgba(255,255,255,0.05); border:2px solid #00f7ff; color:#fff; border-radius:12px; padding:15px; font-size:16px; outline:none;"></textarea>
+
             <div style="display:flex; gap:15px; justify-content:center; margin-top:25px;">
                 <button class="start-btn" style="padding:13px 40px; font-size:17px;" onclick="submitFeedback()">SEND</button>
                 <button class="start-btn" style="padding:13px 40px; font-size:17px; background:#333; border-color:#666;" onclick="closeFeedback()">CANCEL</button>
@@ -279,49 +166,89 @@
     </div>
 
     <script>
-        function enterInterface() {
-            window.location.href = '/signin';
-        }
+        let selectedRating = 3;
 
-        function goToBlog() {
-            window.location.href ='/blog';
-        }
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && window.location.pathname === '/') enterInterface();
-        });
+        function enterInterface() { window.location.href = '/signin'; }
+        function goToBlog() { window.location.href = '/blog'; }
 
         // Manual Modal
-        function openManualModal() {
-            document.getElementById('manualModal').style.display = 'flex';
-        }
-        function closeManualModal() {
-            document.getElementById('manualModal').style.display = 'none';
-        }
+        function openManualModal() { document.getElementById('manualModal').style.display = 'flex'; }
+        function closeManualModal() { document.getElementById('manualModal').style.display = 'none'; }
 
         // Feedback Modal
         function openFeedback() {
             document.getElementById('feedbackModal').style.display = 'flex';
+            setRating(3); // reset to 3 stars
+            setTimeout(() => document.getElementById('username').focus(), 200);
         }
-        function closeFeedback() {
-            document.getElementById('feedbackModal').style.display = 'none';
+        function closeFeedback() { document.getElementById('feedbackModal').style.display = 'none'; }
+
+        function setRating(value) {
+            selectedRating = value;
+            const stars = document.querySelectorAll('#ratingStars .star');
+            stars.forEach((star, index) => {
+                star.classList.toggle('active', index + 1 <= value);
+            });
         }
 
-        function submitFeedback() {
-            const text = document.getElementById('feedbackText').value.trim();
-            if (!text) {
-                alert("Please write something before sending.");
+        async function submitFeedback() {
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const message = document.getElementById('feedbackText').value.trim();
+
+            if (!username || !email || !message) {
+                alert("Please fill all fields.");
                 return;
             }
-            alert("✅ Thank you! Your feedback has been received.");
-            closeFeedback();
-            document.getElementById('feedbackText').value = "";
+
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email)) {
+                alert("Please enter a valid email.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/submit_feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        message: message,
+                        rating: selectedRating
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert("✅ Thank you! Your feedback has been received.");
+                    closeFeedback();
+                    // Clear form
+                    document.getElementById('username').value = '';
+                    document.getElementById('email').value = '';
+                    document.getElementById('feedbackText').value = '';
+                } else {
+                    alert("Error: " + (data.message || "Something went wrong"));
+                }
+            } catch (error) {
+                console.error("Feedback error:", error);
+                alert("Failed to send feedback. Please make sure the server is running.");
+            }
         }
+
+        // Keyboard & Click outside support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && window.location.pathname === '/') enterInterface();
+        });
 
         window.addEventListener('click', (e) => {
             if (e.target.id === 'manualModal') closeManualModal();
             if (e.target.id === 'feedbackModal') closeFeedback();
         });
+
+        // Initialize stars on load
+        window.onload = () => setRating(3);
     </script>
 </body>
 </html>

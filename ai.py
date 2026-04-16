@@ -21,6 +21,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import queue
 from groq import Groq
 from contextlib import contextmanager
+from app_automations.intent_parser import parse_intent
+from app_automations import whatsapp, chrome, notepad
 
 # ─── Load API Key ───
 load_dotenv()

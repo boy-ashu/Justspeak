@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA Setup Complete - Saarthi AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .backup-code {
+            font-family: monospace;
+            background: #111;
+            color: #0f0;
+            padding: 12px 16px;
+            margin: 6px 0;
+            border-radius: 6px;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-header text-center">
+                        <h3>✅ 2FA Successfully Enabled!</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <strong>Important:</strong> Save these backup codes in a safe place. 
+                            Each code can be used only once if you lose access to your authenticator app.
+                        </div>
+
+                        <h5 class="mt-4">Your Backup Codes:</h5>
+                        <div class="row">
+                            {% for code in backup_codes %}
+                            <div class="col-6">
+                                <div class="backup-code text-center">{{ code }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="alert alert-info mt-4">
+                            <strong>Tip:</strong> You can print this page or copy the codes now. 
+                            After leaving this page, you won't be able to see them again.
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <a href="{{ url_for('index') }}" class="btn btn-light btn-lg">
+                                Continue to Saarthi Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -6,27 +6,91 @@
     <title>Saarthi • Sign Up</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        body { margin:0; height:100vh; background:#0a0a1f; display:flex; align-items:center; justify-content:center; font-family:'Orbitron', sans-serif; }
-        .auth-box { background:rgba(10,10,31,0.95); border:3px solid #00f7ff; border-radius:25px; padding:50px 60px; width:440px; text-align:center; box-shadow:0 0 70px rgba(0,247,255,0.5); }
-        .logo { font-size:48px; font-weight:700; letter-spacing:8px; text-shadow:0 0 30px #00ffea; margin-bottom:10px; }
-        input { width:100%; padding:16px 20px; margin:12px 0; background:rgba(255,255,255,0.08); border:2px solid #00f7ff; border-radius:50px; color:white; font-size:16px; }
-        button { width:100%; padding:16px; margin-top:20px; background:#00f7ff; color:#0a0a1f; border:none; border-radius:50px; font-weight:700; cursor:pointer; }
-        .error { color:#ff6666; margin:15px 0; }
-        .link { margin-top:25px; color:#00ffea; text-decoration:none; }
+        body { 
+            margin:0; height:100vh; background:#0a0a1f; 
+            display:flex; align-items:center; justify-content:center; 
+            font-family:'Orbitron', sans-serif; 
+        }
+        .auth-box { 
+            background:rgba(10,10,31,0.95); 
+            border:3px solid #00f7ff; 
+            border-radius:25px; 
+            padding:50px 60px; 
+            width:440px; 
+            text-align:center; 
+            box-shadow:0 0 70px rgba(0,247,255,0.5); 
+        }
+        .logo { 
+            font-size:48px; 
+            font-weight:700; 
+            letter-spacing:8px; 
+            text-shadow:0 0 30px #00ffea; 
+            margin-bottom:10px; 
+        }
+        input { 
+            width:100%; 
+            padding:16px 20px; 
+            margin:12px 0; 
+            background:rgba(255,255,255,0.08); 
+            border:2px solid #00f7ff; 
+            border-radius:50px; 
+            color:white; 
+            font-size:16px; 
+        }
+        button { 
+            width:100%; 
+            padding:16px; 
+            margin-top:20px; 
+            background:#00f7ff; 
+            color:#0a0a1f; 
+            border:none; 
+            border-radius:50px; 
+            font-weight:700; 
+            cursor:pointer; 
+            font-size:17px;
+        }
+        .error { 
+            color:#ff6666; 
+            margin:15px 0; 
+            font-size:15px;
+        }
+        .link { 
+            margin-top:25px; 
+            color:#00ffea; 
+            text-decoration:none; 
+        }
     </style>
 </head>
 <body>
     <div class="auth-box">
         <div class="logo">SAARTHI</div>
         <h2>Create Account</h2>
-        {% if error %}<p class="error">{{ error }}</p>{% endif %}
-        <form method="POST">
-            <input type="text" name="username" placeholder="Choose Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+        
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('signup') }}">
+            <input type="text" 
+                   name="username" 
+                   placeholder="Choose Username" 
+                   value="{{ request.form.username or '' }}" 
+                   required>
+
+            <input type="password" 
+                   name="password" 
+                   placeholder="Password" 
+                   required>
+
+            <input type="password" 
+                   name="confirm_password" 
+                   placeholder="Confirm Password" 
+                   required>
+
             <button type="submit">SIGN UP</button>
         </form>
-        <a href="/signin" class="link">Already have an account? Sign In</a>
+
+        <a href="{{ url_for('signin') }}" class="link">Already have an account? Sign In</a>
     </div>
 </body>
 </html>

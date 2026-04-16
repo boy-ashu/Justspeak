@@ -4,12 +4,8 @@
     <meta charset="UTF-8">
     <title>Saarthi Admin Panel • Full Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   
-    <!-- Bootstrap 5.3 CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-   
-    <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -29,8 +25,6 @@
             flex-direction: column;
             position: relative;
         }
-
-        /* Three.js Background */
         #three-bg {
             position: absolute;
             top: 0; left: 0;
@@ -39,25 +33,17 @@
             opacity: 0.65;
             pointer-events: none;
         }
-
         body::before {
             content: '';
             position: absolute;
             inset: 0;
             background-image:
                 linear-gradient(rgba(0,242,254,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,242,254,0.04) 1px, transparent 1px),
-                linear-gradient(transparent 50%, rgba(195,0,255,0.02) 50%);
-            background-size: 60px 60px, 60px 60px, 100% 4px;
+                linear-gradient(90deg, rgba(0,242,254,0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
             pointer-events: none;
             z-index: -2;
-            animation: scan 8s linear infinite;
         }
-        @keyframes scan {
-            0% { background-position: 0 0; }
-            100% { background-position: 0 200px; }
-        }
-
         .header {
             background: rgba(10, 26, 32, 0.95);
             backdrop-filter: blur(20px);
@@ -70,7 +56,6 @@
             letter-spacing: 3px;
             position: relative;
         }
-        /* Glitch effect */
         .header h1::before,
         .header h1::after {
             content: attr(data-text);
@@ -92,13 +77,16 @@
         }
         @keyframes glitch1 { 0%,100% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } }
         @keyframes glitch2 { 0%,100% { transform: translate(0); } 20% { transform: translate(3px, -2px); } }
-
         .logo-dot {
             width: 14px; height: 14px;
             background: var(--accent);
             border-radius: 50%;
             box-shadow: 0 0 30px var(--accent), 0 0 60px var(--cyan);
             animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
         .sidebar {
             width: 270px;
@@ -111,6 +99,7 @@
             color: #ddd;
             padding: 16px 30px;
             transition: all 0.4s ease;
+            cursor: pointer;
         }
         .sidebar .nav-link:hover,
         .sidebar .nav-link.active {
@@ -122,30 +111,29 @@
         .main-content {
             flex: 1;
             overflow: hidden;
-            perspective: 1800px;
         }
         .content-area {
             padding: 30px;
             overflow-y: auto;
             height: 100%;
         }
+
+        /* ── Section visibility ── */
+        .section { display: none; }
+        .section.active { display: block; }
+
         .custom-card {
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(0,242,254,0.35);
             border-radius: 18px;
             padding: 24px;
             backdrop-filter: blur(16px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.4),
-                        0 0 40px rgba(0,242,254,0.25);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 40px rgba(0,242,254,0.25);
             transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-            transform-style: preserve-3d;
-            position: relative;
-            overflow: hidden;
         }
         .custom-card:hover {
             transform: translateY(-18px) scale(1.04) rotateX(8deg) rotateY(8deg);
-            box-shadow: 0 30px 70px rgba(0, 242, 254, 0.45),
-                        0 0 60px rgba(195, 0, 255, 0.3);
+            box-shadow: 0 30px 70px rgba(0, 242, 254, 0.45), 0 0 60px rgba(195, 0, 255, 0.3);
         }
         .logs-box {
             background: rgba(0,0,0,0.7);
@@ -158,28 +146,79 @@
             color: #000;
             font-weight: 700;
             box-shadow: 0 0 25px #00f2fe;
+            border: none;
         }
         .btn-neon:hover {
             transform: translateY(-3px) scale(1.08);
             box-shadow: 0 0 45px #00f2fe;
+            color: #000;
         }
-
-        /* Fixed Gradient Text */
         .stat-number {
             font-size: 3.2rem;
             font-weight: 900;
-            color: #00f2fe;                    /* Fallback */
+            color: #00f2fe;
             background: linear-gradient(90deg, #00f2fe, #ffffff);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+
+        /* ── Login History Table ── */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .history-table thead th {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--cyan);
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0,242,254,0.3);
+            white-space: nowrap;
+        }
+        .history-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            transition: background 0.2s;
+        }
+        .history-table tbody tr:hover {
+            background: rgba(0,242,254,0.06);
+        }
+        .history-table tbody td {
+            padding: 10px 16px;
+            color: #ccc;
+            vertical-align: middle;
+            word-break: break-all;
+        }
+        .badge-success {
+            background: rgba(0, 255, 100, 0.15);
+            color: #00ff64;
+            border: 1px solid rgba(0,255,100,0.3);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-fail {
+            background: rgba(255, 60, 60, 0.15);
+            color: #ff4444;
+            border: 1px solid rgba(255,60,60,0.3);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .history-wrap {
+            overflow-x: auto;
+            max-height: calc(100vh - 320px);
+            overflow-y: auto;
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Three.js Canvas -->
-    <canvas id="three-bg"></canvas>
+<canvas id="three-bg"></canvas>
 
 <!-- Header -->
 <header class="header py-3 px-4">
@@ -199,21 +238,24 @@
 </header>
 
 <div class="d-flex flex-grow-1 overflow-hidden">
-    <!-- Sidebar -->
+    <!-- Sidebar — each nav item calls switchSection(N) with the correct index -->
     <nav class="sidebar d-flex flex-column p-3">
         <div class="nav flex-column">
             <a href="#" onclick="switchSection(0)" class="nav-link active" id="nav-0">📊 Dashboard</a>
             <a href="#" onclick="switchSection(1)" class="nav-link" id="nav-1">📜 Live Logs</a>
             <a href="#" onclick="switchSection(2)" class="nav-link" id="nav-2">👥 Users</a>
-            <a href="#" onclick="switchSection(3)" class="nav-link" id="nav-3">🚦 Traffic</a>
-            <a href="#" onclick="switchSection(4)" class="nav-link" id="nav-4">🔑 Permissions</a>
-            <a href="#" onclick="switchSection(5)" class="nav-link" id="nav-5">⚙️ Settings</a>
+            <a href="#" onclick="switchSection(3)" class="nav-link" id="nav-3">🔑 Permissions</a>
+            <a href="#" onclick="switchSection(4)" class="nav-link" id="nav-4">⚙️ Settings</a>
+            <a href="#" onclick="switchSection(5)" class="nav-link" id="nav-5">💬 Feedback</a>
+            <a href="#" onclick="switchSection(6)" class="nav-link" id="nav-6">🔐 Login History</a>
         </div>
     </nav>
+
     <!-- Main Content -->
     <div class="main-content flex-grow-1 d-flex flex-column">
         <div class="content-area">
-            <!-- Dashboard Section -->
+
+            <!-- Section 0: Dashboard -->
             <div id="section-0" class="section active">
                 <h2 class="mb-4">System Overview</h2>
                 <div class="row g-4">
@@ -237,7 +279,8 @@
                     </div>
                 </div>
             </div>
-            <!-- Live Logs Section -->
+
+            <!-- Section 1: Live Logs -->
             <div id="section-1" class="section">
                 <div class="d-flex flex-wrap gap-2 mb-4">
                     <button onclick="loadLogs()" class="btn btn-neon">Refresh</button>
@@ -247,50 +290,129 @@
                 </div>
                 <div class="logs-box p-4 overflow-auto" id="logs" style="height: calc(100vh - 280px);"></div>
             </div>
-        </div>
-    </div>
+
+            <!-- Section 2: Users -->
+            <div id="section-2" class="section">
+                <h2 class="mb-4">Users</h2>
+                <div class="custom-card">
+                    <p class="text-muted">User management coming soon.</p>
+                </div>
+            </div>
+
+            <!-- Section 3: Permissions -->
+            <div id="section-3" class="section">
+                <h2 class="mb-4">Permissions</h2>
+                <div class="custom-card">
+                    <p class="text-muted">Permissions management coming soon.</p>
+                </div>
+            </div>
+
+            <!-- Section 4: Settings -->
+            <div id="section-4" class="section">
+                <h2 class="mb-4">Settings</h2>
+                <div class="custom-card">
+                    <p class="text-muted">Settings panel coming soon.</p>
+                </div>
+            </div>
+
+            <!-- Section 6: Feedback -->
+            <div id="section-5" class="section">
+                <h2 class="mb-4">User Feedback</h2>
+                <div class="custom-card">
+                    <div class="d-flex gap-2 mb-3">
+                        <button onclick="loadFeedback()" class="btn btn-neon">Load Feedback</button>
+                        <button onclick="clearFeedback()" class="btn btn-danger">Clear All</button>
+                    </div>
+                    <div id="feedback-list" style="max-height: 500px; overflow-y: auto;"></div>
+                </div>
+            </div>
+
+        <div id="section-6" class="section">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="mb-0">🔐 Login History</h2>
+            <div class="d-flex gap-2">
+            <button onclick="loadLoginHistory()" class="btn btn-neon">↻ Refresh</button>
+         <button onclick="toggleAutoRefresh()" class="btn btn-neon">Auto</button>
+</div>
 </div>
 
-<!-- Bootstrap JS -->
+<!-- FILTER BAR -->
+<div class="d-flex flex-wrap gap-2 p-3 border-bottom">
+<input type="text" id="search-user" placeholder="Search username..." class="form-control" style="max-width:200px;">
+<select id="filter-status" class="form-select" style="max-width:160px;">
+<option value="">All</option>
+<option value="true">Success</option>
+<option value="false">Failed</option>
+</select>
+<button onclick="loadLoginHistory()" class="btn btn-neon">Apply</button>
+</div>
+
+<div class="custom-card" style="padding:0; overflow:hidden;">
+<div class="history-wrap">
+<table class="history-table">
+<thead>
+<tr>
+<th>#</th>
+<th>Username</th>
+<th>IP</th>
+<th>Location</th>
+<th>Device</th>
+<th>Browser</th>
+<th>Status</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody id="login-history-body">
+<tr>
+<td colspan="8" class="text-center text-muted p-4">Click Refresh to load login history.</td>
+</tr>
+</tbody>
+</table>
+</div>
+   </div>
+
+</div>      
+
+        </div><!-- /content-area -->
+    </div><!-- /main-content -->
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 
 <script>
-// Three.js 3D Background Animation
-let scene, camera, renderer, particles;
-
+/* ─────────────────────────────────────────────
+   THREE BACKGROUND
+───────────────────────────────────────────── */
 function initThree() {
     const canvas = document.getElementById('three-bg');
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    if (!canvas) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 90;
 
-    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    // Create particles
-    const particleCount = 800;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(800 * 3);
 
-    for (let i = 0; i < particleCount * 3; i += 3) {
-        positions[i]     = (Math.random() - 0.5) * 200;
-        positions[i + 1] = (Math.random() - 0.5) * 200;
-        positions[i + 2] = (Math.random() - 0.5) * 200;
+    for (let i = 0; i < pos.length; i++) {
+        pos[i] = (Math.random() - 0.5) * 200;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 
-    const material = new THREE.PointsMaterial({
+    const mat = new THREE.PointsMaterial({
         color: 0x00f2fe,
         size: 1.3,
         transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending
+        opacity: 0.8
     });
 
-    particles = new THREE.Points(geometry, material);
+    const particles = new THREE.Points(geo, mat);
     scene.add(particles);
 
     function animate() {
@@ -300,91 +422,176 @@ function initThree() {
         renderer.render(scene, camera);
     }
     animate();
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
 }
 
-// Your existing functions
-function add3DTilt() {
-    const cards = document.querySelectorAll('.custom-card');
-    cards.forEach(card => {
-        card.addEventListener('mousemove', (e) => {
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-           
-            const rotateX = (y - centerY) / 12;
-            const rotateY = (centerX - x) / 12;
-           
-            card.style.transform = `perspective(1200px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg) translateZ(30px)`;
-        });
-        card.addEventListener('mouseleave', () => {
-            card.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg) translateZ(0px)`;
-        });
-    });
-}
+/* ─────────────────────────────────────────────
+   SECTION SWITCH
+───────────────────────────────────────────── */
+const SECTION_COUNT = 8;
 
 function switchSection(n) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById('section-' + n).classList.add('active');
-   
-    document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
-    document.getElementById('nav-' + n).classList.add('active');
+    for (let i = 0; i < SECTION_COUNT; i++) {
+        const sec = document.getElementById('section-' + i);
+        const nav = document.getElementById('nav-' + i);
+
+        if (sec) sec.classList.toggle('active', i === n);
+        if (nav) nav.classList.toggle('active', i === n);
+    }
+
+    if (n === 5) loadFeedback();
+    if (n === 6) loadLoginHistory();
 }
 
-let isRunning = true;
+/* ─────────────────────────────────────────────
+   LOGIN HISTORY (FINAL FIX)
+───────────────────────────────────────────── */
+async function loadLoginHistory() {
+    const tbody = document.getElementById('login-history-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr><td colspan="6" class="text-center text-info p-4">Loading...</td></tr>
+    `;
+
+    try {
+        const res = await fetch('/login-history-json');
+
+        if (!res.ok) {
+            tbody.innerHTML = `
+                <tr><td colspan="6" class="text-danger text-center p-4">
+                    Error ${res.status}
+                </td></tr>`;
+            return;
+        }
+
+        const data = await res.json();
+
+        if (!data.history || data.history.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="6" class="text-muted text-center p-4">
+                    No login records found
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.history.map((row, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td style="color:#00f2fe;">${escHtml(row.username)}</td>
+                <td>${escHtml(row.ip_address)}</td>
+                <td>
+                    <span class="${row.success ? 'badge-success' : 'badge-fail'}">
+                        ${row.success ? '✔ Success' : '✘ Failed'}
+                    </span>
+                </td>
+                <td>${escHtml(row.login_time)}</td>
+                <td>${escHtml((row.user_agent || '').substring(0, 50))}</td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `
+            <tr><td colspan="6" class="text-danger text-center p-4">
+                Failed to load data
+            </td></tr>`;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   AUTO REFRESH (FIXED)
+───────────────────────────────────────────── */
+setInterval(() => {
+    const section = document.getElementById('section-7');
+    if (section && section.classList.contains('active')) {
+        loadLoginHistory();
+    }
+}, 8000);
+
+/* ─────────────────────────────────────────────
+   SAFE HTML
+───────────────────────────────────────────── */
+function escHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/* ─────────────────────────────────────────────
+   FEEDBACK
+───────────────────────────────────────────── */
+async function loadFeedback() {
+    const container = document.getElementById('feedback-list');
+    if (!container) return;
+
+    container.innerHTML = 'Loading...';
+
+    try {
+        const res = await fetch('/get_feedback');
+        const data = await res.json();
+
+        if (!data.feedbacks || data.feedbacks.length === 0) {
+            container.innerHTML = 'No feedback';
+            return;
+        }
+
+        container.innerHTML = data.feedbacks.map(fb => `
+            <div class="p-3 mb-2 bg-dark rounded">
+                <b>${escHtml(fb.username)}</b> ⭐${fb.rating}
+                <p>${escHtml(fb.message)}</p>
+            </div>
+        `).join('');
+
+    } catch {
+        container.innerHTML = 'Error loading feedback';
+    }
+}
+
+/* ─────────────────────────────────────────────
+   LOGS
+───────────────────────────────────────────── */
+let logsPaused = false;
+
 async function loadLogs() {
+    if (logsPaused) return;
+
     const logsDiv = document.getElementById('logs');
-    logsDiv.innerHTML = '<div class="log p-3 mb-3 bg-dark border-start border-info">Loading logs...</div>';
-   
+    if (!logsDiv) return;
+
     try {
         const res = await fetch('/get-logs');
         const data = await res.json();
-        logsDiv.innerHTML = '';
-        data.logs.forEach((log, i) => {
-            const div = document.createElement('div');
-            div.className = 'log p-3 mb-3 bg-dark border-start border-info rounded';
-            div.style.animationDelay = (i * 60) + 'ms';
-            div.textContent = log;
-            logsDiv.appendChild(div);
-        });
-    } catch(e) {
-        logsDiv.innerHTML = '<div class="p-3 text-danger">Error loading logs</div>';
+
+        logsDiv.innerHTML = (data.logs || []).map(log =>
+            `<div class="log">${log}</div>`
+        ).join('');
+
+    } catch {
+        logsDiv.innerHTML = 'Error loading logs';
     }
 }
 
 function toggleLogs() {
-    isRunning = !isRunning;
-    document.getElementById('toggleBtn').textContent = isRunning ? 'Pause' : 'Resume';
+    logsPaused = !logsPaused;
 }
 
-function clearLogs() {
-    if(confirm('Clear all logs?')) document.getElementById('logs').innerHTML = '';
-}
-
-function downloadLogs() {
-    alert('Logs downloaded (connect your backend)');
-}
-
-setInterval(() => {
-    if (document.getElementById('section-1').classList.contains('active')) {
-        loadLogs();
-    }
-}, 4000);
-
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
 window.onload = () => {
-    initThree();        // Added Three.js 3D animation
+    initThree();
     loadLogs();
-    add3DTilt();
-    document.getElementById('server-time').textContent =
-        `Server: ${new Date().toLocaleTimeString('en-IN', {hour12: false})} IST`;
+
+    setInterval(() => {
+        const sec = document.getElementById('section-1');
+        if (sec && sec.classList.contains('active')) {
+            loadLogs();
+        }
+    }, 4000);
 };
 </script>
+    
 </body>
 </html>

@@ -16,10 +16,26 @@ body {
     background: #0a0a1f;
     color: var(--neon-blue);
     font-family: 'Orbitron', sans-serif;
-    overflow: hidden;
+
+    /* ✅ ADD THIS */
+    overflow-x: hidden;
+    overflow-y: hidden;
+
     height: 100vh;
     width: 100vw;
     position: relative;
+}
+#chat-log {
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    flex: 1;
+    min-height: 0;
+
+    scroll-behavior: smooth;
+
+    /* ✅ Performance boost */
+    will-change: transform;
 }
 
 canvas#three-canvas {
@@ -29,6 +45,9 @@ canvas#three-canvas {
     width: 100%;
     height: 100%;
     z-index: 1;
+    pointer-events: none;
+    will-change: transform;
+    transform: translateZ(0);
 }
 /* Logout Button */
 .logout-btn {
@@ -127,8 +146,12 @@ canvas#three-canvas {
     white-space: pre-wrap;
     line-height: 1.5;
     pointer-events: auto;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    will-change: contents;
+    transform: translateZ(0);
 }
-
 .conversation-panel {
     position: absolute;
     bottom: 30px;
@@ -139,6 +162,9 @@ canvas#three-canvas {
     border: 2px solid var(--neon-blue);
     border-radius: 20px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    contain: layout paint;
     box-shadow: 0 0 40px var(--neon-blue);
     pointer-events: auto;
     z-index: 10;
@@ -174,6 +200,11 @@ canvas#three-canvas {
     background: rgba(0, 247, 255, 0.25);
     border: 1px solid var(--neon-cyan);
     border-bottom-right-radius: 5px;
+    max-width: 85%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    flex-shrink: 0;         
+    will-change: transform;
 }
 
 .assistant-msg {
@@ -208,10 +239,11 @@ canvas#three-canvas {
     border-radius: 50%;
     font-size: 32px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
     box-shadow: 0 0 35px var(--neon-cyan);
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
 }
-
 #mic-btn.listening {
     animation: micPulse 1.2s infinite;
     background: rgba(0, 255, 234, 0.25);
