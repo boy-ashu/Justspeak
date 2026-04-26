@@ -1,0 +1,17 @@
+Flask
+pywebview
+pyautogui
+SpeechRecognition
+playsound==1.2.2
+requests
+edge-tts
+python-dotenv
+google-genai
+mysql-connector-python
+Werkzeug
+groq
+Flask-Limiter
+pyotp
+qrcode
+Pillow
+PyAudio
