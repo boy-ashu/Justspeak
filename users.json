@@ -1,8 +1,0 @@
-{
-    "ashu": {
-        "password": "scrypt:32768:8:1$qp1q9Z8iHs8I2RQi$2b27dc1dea0f8c639a8b0fb05b4e17ddf3babf978139855a18f8a4f58b69e78ef87d043d35cf58f46127ebd884643d9037a09952c193a727698067f9ff2f6ca7"
-    },
-    "amit": {
-        "password": "scrypt:32768:8:1$gxt1tXnm4CayphO3$50418ec1f7ab30325cdd1d47c2b5b1da465845439680a6cfa47268e5a6520d36c56d4f46f14de51f56afc66cc7ad3f9dfa3b57e25064096310b54b19422c2a1e"
-    }
-}
